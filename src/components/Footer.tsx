@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   Printer,
@@ -18,8 +19,14 @@ import {
 } from "lucide-react";
 
 export const Footer: React.FC = () => {
+  const pathname = usePathname();
   const { language, t } = useLanguage();
   const [activeModal, setActiveModal] = useState<"terms" | "privacy" | "refund" | null>(null);
+
+  // Suppress website footer on dashboard
+  if (pathname?.startsWith("/dashboard")) {
+    return null;
+  }
 
   return (
     <>

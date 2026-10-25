@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ShieldCheck, Cookie, Check, X, Settings2 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -26,11 +27,17 @@ export function getCookiePreferences(): CookiePreferences | null {
 }
 
 export function CookieConsentBanner() {
+  const pathname = usePathname();
   const { language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const [analyticsAllowed, setAnalyticsAllowed] = useState(false);
   const [marketingAllowed, setMarketingAllowed] = useState(false);
+
+  // Suppress on dashboard
+  if (pathname?.startsWith("/dashboard")) {
+    return null;
+  }
 
   useEffect(() => {
     const existing = getCookiePreferences();

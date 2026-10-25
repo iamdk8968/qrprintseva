@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   X,
@@ -23,8 +24,14 @@ interface PopupData {
 }
 
 export const GlobalPromoModal: React.FC = () => {
+  const pathname = usePathname();
   const { language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
+
+  // Suppress on dashboard
+  if (pathname?.startsWith("/dashboard")) {
+    return null;
+  }
   const [popupData, setPopupData] = useState<PopupData>({
     enabled: true,
     title: "⚡ Special Launch Offer (सीमित समय ऑफर)",

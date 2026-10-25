@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
 import { DemoModal } from "@/components/DemoModal";
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 
 export const Navbar: React.FC = () => {
+  const pathname = usePathname();
   const { language, toggleLanguage, t } = useLanguage();
   const { user, isLoggedIn, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -31,6 +33,11 @@ export const Navbar: React.FC = () => {
   // Modal States
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+
+  // Don't render website navbar on standalone dashboard pages
+  if (pathname?.startsWith("/dashboard")) {
+    return null;
+  }
 
   return (
     <>
