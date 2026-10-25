@@ -82,12 +82,15 @@ export default function RegisterShopPage() {
         <div className="flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-center gap-2 text-slate-900 font-extrabold text-sm group"
+            className="flex items-center gap-2.5 text-slate-900 font-extrabold text-sm group"
           >
-            <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-md">
-              <Printer className="w-4 h-4" />
+            <div className="w-8 h-8 flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="QR Print Seva Logo" className="w-full h-full object-contain" />
             </div>
-            <span>SmartPrint Pro</span>
+            <span className="font-extrabold text-base">
+              {language === "hi" ? "क्यूआर प्रिंट सेवा" : "QR Print Seva"}
+            </span>
           </Link>
 
           <button

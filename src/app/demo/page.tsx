@@ -31,8 +31,8 @@ export default function DemoPage() {
         <div className="text-center max-w-3xl mx-auto space-y-3">
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
             {language === "hi"
-              ? "स्मार्टप्रिंट प्रो लाइव टेस्ट ड्राइव"
-              : "SmartPrint Pro Live Interactive Sandbox"}
+              ? "क्यूआर प्रिंट सेवा लाइव टेस्ट ड्राइव"
+              : "QR Print Seva Live Interactive Sandbox"}
           </h1>
           <p className="text-sm sm:text-base text-slate-500">
             {language === "hi"

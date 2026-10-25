@@ -186,7 +186,7 @@ export default function TVQueueDisplayPage() {
         </div>
         <div className="flex items-center gap-2 font-mono text-blue-400">
           <Sparkles className="w-4 h-4" />
-          <span>SmartPrint Pro Cloud Queue</span>
+          <span>QR Print Seva Cloud Queue</span>
         </div>
       </div>
     </div>

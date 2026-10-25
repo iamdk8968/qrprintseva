@@ -22,6 +22,11 @@ export const metadata: Metadata = {
     "passport photo maker",
     "aadhaar card print software",
   ],
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

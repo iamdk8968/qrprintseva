@@ -659,15 +659,21 @@ export default function SuperAdminMasterDashboard() {
             
             {/* Master Brand */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-slate-950 shadow-md shadow-amber-500/20 font-black">
-                <Crown className="w-5 h-5" />
+              <div className="w-10 h-10 flex items-center justify-center relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/logo.png"
+                  alt="QR Print Seva"
+                  className="w-full h-full object-contain drop-shadow"
+                />
               </div>
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-extrabold text-base sm:text-lg text-white tracking-tight">
                     QR Print Seva
                   </span>
-                  <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                    <Crown className="w-3 h-3 fill-slate-950" />
                     Founder Master
                   </span>
                 </div>

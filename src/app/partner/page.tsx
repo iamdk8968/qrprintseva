@@ -51,8 +51,8 @@ export default function PartnerProgramPage() {
             <Handshake className="w-4 h-4 text-blue-600" />
             <span>
               {language === "hi"
-                ? "स्मार्टप्रिंट प्रो अधिकृत पार्टनर व डिस्ट्रीब्यूटर प्रोग्राम"
-                : "Official SmartPrint Pro Partner & Reseller Program"}
+                ? "क्यूआर प्रिंट सेवा अधिकृत पार्टनर व डिस्ट्रीब्यूटर प्रोग्राम"
+                : "Official QR Print Seva Partner & Reseller Program"}
             </span>
           </div>
 

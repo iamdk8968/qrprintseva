@@ -102,17 +102,13 @@ export const Footer: React.FC = () => {
             {/* Column 1: Brand Info & Official Declaration */}
             <div className="md:col-span-1 space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md overflow-hidden relative">
+                <div className="w-11 h-11 flex items-center justify-center relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src="/logo.png"
-                    alt="Logo"
-                    className="w-full h-full object-contain relative z-10 bg-white"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
+                    alt="QR Print Seva Logo"
+                    className="w-full h-full object-contain drop-shadow"
                   />
-                  <Printer className="w-5 h-5 absolute inset-0 m-auto pointer-events-none" />
                 </div>
                 <div>
                   <span className="font-extrabold text-xl text-white tracking-tight">

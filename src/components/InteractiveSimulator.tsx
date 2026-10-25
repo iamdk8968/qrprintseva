@@ -335,7 +335,7 @@ export const InteractiveSimulator: React.FC = () => {
                   <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                   <div className="w-3 h-3 rounded-full bg-green-500"></div>
                   <span className="text-xs font-mono font-bold text-slate-400 ml-2">
-                    SmartPrint Pro - Live Spooler Queue
+                    QR Print Seva - Live Spooler Queue
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-xs">

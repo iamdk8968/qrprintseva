@@ -598,7 +598,7 @@ export default function ResumeBioDataBuilder() {
                 </div>
 
                 <div className="pt-6 text-center text-[10px] text-slate-400 border-t border-slate-100 mt-6">
-                  Printed via SmartPrint Pro Cyber Cafe System
+                  Printed via QR Print Seva Cyber Cafe System
                 </div>
               </div>
             )}
@@ -704,7 +704,7 @@ export default function ResumeBioDataBuilder() {
                 )}
 
                 <div className="pt-6 text-center text-[10px] text-slate-400 border-t border-slate-100 mt-6">
-                  Printed via SmartPrint Pro Cyber Cafe System
+                  Printed via QR Print Seva Cyber Cafe System
                 </div>
               </div>
             )}

@@ -56,17 +56,13 @@ export const Navbar: React.FC = () => {
             
             {/* 1. Brand Logo */}
             <Link href="/" className="flex items-center gap-3 group flex-shrink-0">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-blue-600 via-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform overflow-hidden relative">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center group-hover:scale-105 transition-transform relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/logo.png"
-                  alt="Logo"
-                  className="w-full h-full object-contain relative z-10 bg-white"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
+                  alt="QR Print Seva Logo"
+                  className="w-full h-full object-contain filter drop-shadow-sm"
                 />
-                <Printer className="w-5 h-5 sm:w-6 sm:h-6 absolute inset-0 m-auto pointer-events-none" />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">

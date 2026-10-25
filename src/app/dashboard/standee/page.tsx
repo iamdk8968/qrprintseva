@@ -55,7 +55,7 @@ export default function CounterStandeeGenerator() {
   const customerPortalUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/print/${shopSlug}`
-      : `https://smartprintpro.in/print/${shopSlug}`;
+      : `https://qrprintseva.vercel.app/print/${shopSlug}`;
 
   // Generate Ultra High-Res QR Code for Print
   useEffect(() => {
@@ -434,8 +434,9 @@ export default function CounterStandeeGenerator() {
                   <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-[#0a2569] uppercase drop-shadow-sm leading-none">
                     {shopName}
                   </h1>
-                  <div className="w-9 h-9 rounded-lg bg-[#0a2569] text-white flex items-center justify-center shadow-sm flex-shrink-0">
-                    <Printer className="w-5 h-5" />
+                  <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/logo.png" alt="QR Print Seva" className="w-full h-full object-contain" />
                   </div>
                   <span className="text-[#1048b4] font-black text-xl select-none">〃</span>
                 </div>
