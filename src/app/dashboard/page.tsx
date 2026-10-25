@@ -199,6 +199,16 @@ export default function ShopkeeperDashboard() {
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  const handleDownloadCounterQr = () => {
+    if (!counterQrUrl) return;
+    const link = document.createElement("a");
+    link.href = counterQrUrl;
+    link.download = `QR-Code-${shopSlug}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handlePrintAction = async (id: string) => {
     try {
       await fetch(`/api/orders/${id}`, {
@@ -627,6 +637,15 @@ export default function ShopkeeperDashboard() {
                       <span>{language === "hi" ? "प्रिंट लिंक कॉपी करें" : "Copy Customer Link"}</span>
                     </>
                   )}
+                </button>
+
+                {/* Download Only QR Button */}
+                <button
+                  onClick={handleDownloadCounterQr}
+                  className="w-full py-2.5 rounded-xl border border-slate-300 hover:border-emerald-600 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 text-xs font-bold transition flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <Download className="w-4 h-4 text-emerald-600" />
+                  <span>{language === "hi" ? "QR कोड डाउनलोड करें (PNG)" : "Download QR Code (PNG)"}</span>
                 </button>
 
                 <Link
