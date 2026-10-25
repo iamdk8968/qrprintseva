@@ -1,0 +1,4 @@
+# QR Print Seva Desktop Agent dependencies
+# Note: Python standard library is sufficient for basic GUI operation.
+# To compile to standalone .exe:
+pyinstaller>=5.0.0

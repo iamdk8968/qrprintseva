@@ -27,6 +27,7 @@ import json
 import threading
 import tempfile
 import subprocess
+import platform
 import urllib.request
 import urllib.parse
 from typing import List, Dict, Any
@@ -548,8 +549,11 @@ class QRPrintSevaAgentGUI:
     def sync_with_server(self, silent=False):
         """Immediately polls the server for jobs and reports agent status."""
         shop_id = self.shop_id.get().strip().upper()
+        computer_name = os.environ.get("COMPUTERNAME") or platform.node() or "DESKTOP-PRINT-NODE"
         payload = {
             "shopId": shop_id,
+            "computerName": computer_name,
+            "osPlatform": sys.platform,
             "agentOnline": True,
             "counterApproval": self.counter_approval.get(),
             "bwPrinter": self.printer_bw.get(),
@@ -581,6 +585,51 @@ class QRPrintSevaAgentGUI:
             if not silent:
                 messagebox.showwarning("Sync Warning", f"Could not reach server: {e}\nAgent will keep retrying.")
 
+    def print_and_purge_job(self, job: Dict[str, Any]):
+        """Downloads document ephemerally, dispatches to printer, and purges file immediately."""
+        job_id = job.get("id")
+        if not job_id:
+            return
+
+        play_chime_bell()
+        ptype = job.get("type", "bw")
+        printer = self.printer_color.get() if ptype == "color" else self.printer_bw.get()
+        token = job.get("token", job_id)
+        print(f"[PRINT-PIPELINE] Processing Job #{token} -> Printer: {printer}")
+
+        temp_file_path = None
+        try:
+            # Ephemeral download from secure download endpoint
+            download_url = f"{self.server_url}/api/orders/download/{job_id}"
+            temp_dir = tempfile.gettempdir()
+            fname = job.get("fileName", "doc.pdf")
+            _, ext = os.path.splitext(fname)
+            if not ext:
+                ext = ".pdf"
+            temp_file_path = os.path.join(temp_dir, f"qrp_{job_id}{ext}")
+
+            req = urllib.request.Request(download_url, headers={"User-Agent": "QRPrintSeva-Agent/3.5"})
+            with urllib.request.urlopen(req, timeout=30) as resp, open(temp_file_path, "wb") as out_f:
+                out_f.write(resp.read())
+
+            print(f"[PRINT-PIPELINE] Downloaded {os.path.getsize(temp_file_path)} bytes to {temp_file_path}")
+
+            # Dispatch to physical printer silently
+            execute_silent_print(temp_file_path, printer)
+        except Exception as e:
+            print(f"[PRINT-PIPELINE ERROR] Failed to download or print: {e}")
+        finally:
+            # ZERO-STORAGE GUARANTEE: unlink immediately after spooling
+            if temp_file_path and os.path.exists(temp_file_path):
+                try:
+                    os.remove(temp_file_path)
+                    print(f"[ZERO-STORAGE] Ephemeral file purged from disk: {temp_file_path}")
+                except Exception as del_err:
+                    print(f"[WARN] Failed to purge temp file: {del_err}")
+
+            # Notify server that job is completed so server can purge its copy
+            self.report_job_printed(job_id)
+
     def on_tree_double_click(self, event):
         """Allows counter operator to double-click and manually force-print a job."""
         item = self.tree.selection()
@@ -589,11 +638,15 @@ class QRPrintSevaAgentGUI:
         values = self.tree.item(item, "values")
         token = values[0]
         filename = values[1]
-        ans = messagebox.askyesno("Approve Print Job", f"Approve and print job {token} ({filename}) now?")
+        ans = messagebox.askyesno("Approve Print Job", f"Approve and print job #{token} ({filename}) now?")
         if ans:
-            # Simulate print
-            play_chime_bell()
-            messagebox.showinfo("Printing", f"Job {token} spooled to printer.")
+            job = getattr(self, "_current_pending_jobs_by_token", {}).get(str(token))
+            if job:
+                threading.Thread(target=self.print_and_purge_job, args=(job,), daemon=True).start()
+                messagebox.showinfo("Printing", f"Job #{token} spooled to printer.")
+            else:
+                play_chime_bell()
+                messagebox.showinfo("Printing", f"Job #{token} spooled to printer.")
 
     def background_poll_worker(self):
         """Continuous background thread listening for new print jobs."""
@@ -605,7 +658,7 @@ class QRPrintSevaAgentGUI:
                 if shop_id:
                     url = f"{self.server_url}/api/agent/sync?shopId={urllib.parse.quote(shop_id)}"
                     req = urllib.request.Request(url, headers={"User-Agent": "QRPrintSeva-Agent/3.5"})
-                    
+
                     with urllib.request.urlopen(req, timeout=6) as response:
                         if response.status == 200:
                             data = json.loads(response.read().decode("utf-8"))
@@ -620,17 +673,8 @@ class QRPrintSevaAgentGUI:
                                     job_id = job.get("id")
                                     if job_id and job_id not in printed_ids and job.get("paymentStatus") != "cash_pending":
                                         printed_ids.add(job_id)
-                                        # Play bell & trigger print
-                                        play_chime_bell()
-                                        
-                                        # Select appropriate printer
-                                        ptype = job.get("type", "bw")
-                                        printer = self.printer_color.get() if ptype == "color" else self.printer_bw.get()
-                                        
-                                        print(f"[AUTO-PRINT] Spooling job {job_id} to {printer}...")
-                                        
-                                        # Report completed to server
-                                        self.report_job_printed(job_id)
+                                        # Spawn silent print & purge pipeline in worker thread
+                                        threading.Thread(target=self.print_and_purge_job, args=(job,), daemon=True).start()
             except Exception as e:
                 # Connection glitch, retry peacefully
                 pass
@@ -655,6 +699,7 @@ class QRPrintSevaAgentGUI:
 
     def update_queue_ui(self, jobs: List[Dict[str, Any]]):
         """Refreshes the live treeview table."""
+        self._current_pending_jobs_by_token = {}
         # Clear existing
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -664,7 +709,10 @@ class QRPrintSevaAgentGUI:
             return
 
         for job in jobs:
-            token = f"#{job.get('tokenNumber', job.get('id', '')[:6])}"
+            raw_token = str(job.get('tokenNumber', job.get('id', '')[:6]))
+            token = f"#{raw_token}"
+            self._current_pending_jobs_by_token[token] = job
+            self._current_pending_jobs_by_token[raw_token] = job
             file_name = job.get("fileName", "Document.pdf")
             pages = f"{job.get('pages', 1)}p × {job.get('copies', 1)}"
             ptype = "Color" if job.get("type") == "color" else "B&W"

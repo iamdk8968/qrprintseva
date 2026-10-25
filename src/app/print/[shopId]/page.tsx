@@ -55,6 +55,7 @@ export default function CustomerPrintPage({
   }, []);
 
   // Form state
+  const [rawFile, setRawFile] = useState<File | null>(null);
   const [file, setFile] = useState<{ name: string; size: string; pages: number } | null>({
     name: "Sample_Aadhaar_Document.pdf",
     size: "1.4 MB",
@@ -89,9 +90,10 @@ export default function CustomerPrintPage({
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selected = e.target.files[0];
+      setRawFile(selected);
       setFile({
         name: selected.name,
-        size: `${(selected.size / (1024 * 1024)).toFixed(1)} MB`,
+        size: `${(selected.size / (1024 * 1024)).toFixed(2)} MB`,
         pages: selected.type.includes("pdf") ? 2 : 1, // simulated page detect
       });
     }
@@ -109,25 +111,49 @@ export default function CustomerPrintPage({
     if (utr) setOrderUtr(utr);
 
     try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          shopSlug: params.shopId || "sharma-cyber-cafe",
-          shopId: params.shopId || "SHARMA-77",
-          fileName: file.name,
-          fileSize: file.size,
-          pages: activePages,
-          copies,
-          type: printType,
-          sides,
-          paperSize,
-          amount: totalAmount,
-          paymentMethod: method,
-          paymentStatus: pStatus,
-          utr: utr || undefined,
-        }),
-      });
+      let res;
+      if (rawFile) {
+        // Real multipart form data upload
+        const formData = new FormData();
+        formData.append("file", rawFile);
+        formData.append("shopSlug", params.shopId || "dk-mobile-demo");
+        formData.append("shopId", params.shopId || "DEMO_FE8F53D1");
+        formData.append("fileName", file.name);
+        formData.append("pages", String(activePages));
+        formData.append("copies", String(copies));
+        formData.append("type", printType);
+        formData.append("sides", sides);
+        formData.append("paperSize", paperSize);
+        formData.append("amount", String(totalAmount));
+        formData.append("paymentMethod", method);
+        formData.append("paymentStatus", pStatus);
+        if (utr) formData.append("utr", utr);
+
+        res = await fetch("/api/orders", {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        res = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            shopSlug: params.shopId || "dk-mobile-demo",
+            shopId: params.shopId || "DEMO_FE8F53D1",
+            fileName: file.name,
+            fileSize: file.size,
+            pages: activePages,
+            copies,
+            type: printType,
+            sides,
+            paperSize,
+            amount: totalAmount,
+            paymentMethod: method,
+            paymentStatus: pStatus,
+            utr: utr || undefined,
+          }),
+        });
+      }
 
       const data = await res.json();
       if (data.success && data.order) {

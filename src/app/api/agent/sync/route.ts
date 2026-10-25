@@ -4,6 +4,8 @@ import { orderStore } from "@/lib/orderStore";
 // In-memory or persisted agent settings state per shop
 interface ShopAgentConfig {
   shopId: string;
+  computerName?: string | null;
+  osPlatform?: string;
   agentOnline: boolean;
   lastHeartbeat: string;
   counterApproval: boolean;
@@ -84,12 +86,28 @@ export async function POST(req: NextRequest) {
       shopId,
     };
 
+    // Handle disconnect request from dashboard
+    if (body.action === "disconnect" || body.disconnect) {
+      shopConfigs[shopId] = {
+        ...existing,
+        computerName: null,
+        agentOnline: false,
+        lastHeartbeat: new Date().toISOString(),
+      };
+      return NextResponse.json({
+        success: true,
+        message: "Computer disconnected successfully",
+        agentConfig: shopConfigs[shopId],
+      });
+    }
+
     // Update agent state
     shopConfigs[shopId] = {
       ...existing,
       ...body,
       shopId,
-      agentOnline: true,
+      computerName: body.computerName !== undefined ? body.computerName : existing.computerName || "DESKTOP-PRINT-NODE",
+      agentOnline: body.agentOnline !== undefined ? body.agentOnline : true,
       lastHeartbeat: new Date().toISOString(),
       pricing: {
         ...existing.pricing,

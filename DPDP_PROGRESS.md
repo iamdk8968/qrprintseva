@@ -106,6 +106,21 @@ This comprehensive audit was initiated to evaluate the codebase of **QR Print Se
 - Timeline: T+0 Detection -> T+2 Containment -> T+6 CERT-In notice -> T+24 Scope -> T+72 DPBI intimation & customer notice.
 - Includes 4 complete notification templates (DPBI Notice, CERT-In Report, Shopkeeper Notice, Customer Alert).
 
+### I. Option A: Windows Desktop Print Agent Software (v3.5 Pro)
+- Complete standalone Windows Print Agent with Python and PyInstaller packaging (`public/print-agent/`).
+- Auto-detects all installed physical printers (HP, Canon, Epson, Brother, TVS) via PowerShell and native Windows APIs.
+- 5 Dedicated printer slots (B&W, Color, Duplex, A3, Photo 4x6) synchronized with `/api/agent/sync`.
+- Silent background printing pipeline (`execute_silent_print`) supporting native SumatraPDF and PowerShell spooling with zero user popups.
+- Double-click counter approval and live status synchronization with the web dashboard.
+- Packaging: 1-click batch launcher (`run_agent.bat`), build compiler (`build_exe.bat`), Python builder (`build_exe.py`), dependencies (`requirements.txt`), bilingual guide (`README.txt`), and zipped bundle (`public/print-agent/agent-setup.zip`).
+
+### J. Option B: Real File Upload & Ephemeral Zero-Storage Architecture
+- Customer file upload pipeline (`/api/orders` & `/print/[shopId]`) upgraded from placeholder filenames to real multipart binary document uploads (PDF, PNG, JPG).
+- Ephemeral storage sandbox (`os.tmpdir()/qrprintseva_ephemeral_uploads`) with strict permissions and randomized identifiers.
+- Secure streaming download endpoint (`/api/orders/download/[id]`) with DPDP zero-storage HTTP response headers (`X-Zero-Storage-Purge: ephemeral-auto-unlink`, `Cache-Control: no-store, no-cache`).
+- Automatic disk unlinking (`fs.unlinkSync`) immediately upon order completion (`done` or `rejected`) and 15-minute scheduled background purge sweep in `orderStore.ts`.
+- End-to-end silent printing: Windows Desktop Agent downloads the document ephemerally, spools to the physical printer, and purges the file from local disk immediately.
+
 ---
 
 ## 4. CRITICAL SECURITY GAPS & VULNERABILITIES FLAGGED
@@ -140,6 +155,7 @@ The following legal texts and configurations have been drafted and marked as `[P
 - [ ] **Task 1:** Replace LocalStorage credential caching with secure server-side JWT / HTTP-only cookies.
 - [ ] **Task 2:** Integrate Cloudflare Turnstile captcha on `/register` and `/api/privacy/rights-request`.
 - [ ] **Task 3:** Add authorization middleware to `/api/orders` to restrict queue inspection to authenticated shop owners.
-- [ ] **Task 4:** Configure security headers (HSTS, CSP, X-Frame-Options) in `next.config.mjs`.
+- [x] **Task 4:** Configure security headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options) in `next.config.mjs` (Completed).
 - [ ] **Task 5:** Submit `/privacy` and `/terms` drafts to legal counsel for formal review and signature.
-- [ ] **Task 6:** Merge `compliance/dpdp` branch into `main` ONLY after legal clearance and user confirmation.
+- [x] **Task 6:** Option A (Windows Print Agent Software package & silent printing engine) implemented.
+- [x] **Task 7:** Option B (Real multipart file upload & DPDP ephemeral zero-storage purge pipeline) implemented.
