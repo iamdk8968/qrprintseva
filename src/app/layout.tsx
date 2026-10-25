@@ -4,6 +4,7 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { GlobalPromoModal } from "@/components/GlobalPromoModal";
 
 export const metadata: Metadata = {
   title: "QR Print Seva | Self-Service Cloud Printing for Cyber Cafes & CSC (qrprintseva.in)",
@@ -33,6 +34,7 @@ export default function RootLayout({
       <body className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-blue-600 selection:text-white">
         <LanguageProvider>
           <AuthProvider>
+            <GlobalPromoModal />
             <Navbar />
             <main className="flex-grow">{children}</main>
             <Footer />

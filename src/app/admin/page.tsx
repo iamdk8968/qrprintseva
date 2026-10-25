@@ -75,7 +75,9 @@ export default function SuperAdminMasterDashboard() {
   const [loginError, setLoginError] = useState("");
 
   // Master Dashboard Active Tab
-  const [activeTab, setActiveTab] = useState<"overview" | "shops" | "sales" | "geo" | "broadcast">("overview");
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "shops" | "sales" | "pricing" | "popup" | "geo" | "broadcast"
+  >("overview");
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState("");
@@ -87,6 +89,28 @@ export default function SuperAdminMasterDashboard() {
 
   // Quick Action Notification
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+
+  // Dynamic Pricing Controls
+  const [priceMonthly, setPriceMonthly] = useState("199");
+  const [priceYearly, setPriceYearly] = useState("599");
+  const [priceLifetime, setPriceLifetime] = useState("1299");
+
+  // Special Offer / Festive Deal Controls
+  const [offerEnabled, setOfferEnabled] = useState(true);
+  const [offerTitle, setOfferTitle] = useState("⚡ Special Launch Offer (सीमित समय ऑफर)");
+  const [offerBadge, setOfferBadge] = useState("FLAT ₹300 OFF");
+  const [offerCode, setOfferCode] = useState("LAUNCH300");
+  const [discountLifetime, setDiscountLifetime] = useState("999");
+  const [discountYearly, setDiscountYearly] = useState("499");
+  const [offerDesc, setOfferDesc] = useState("Get Lifetime Supreme Plan for just ₹999 (One-time payment for permanent access).");
+
+  // Global Promo Modal Popup Controls
+  const [popupEnabled, setPopupEnabled] = useState(true);
+  const [popupTitle, setPopupTitle] = useState("🎉 भारत का नंबर 1 क्लाउड प्रिंटिंग सॉफ्टवेयर");
+  const [popupBadge, setPopupBadge] = useState("LIMITED TIME OFFER");
+  const [popupMessage, setPopupMessage] = useState("साइबर कैफे और जन सेवा केंद्रों के लिए विशेष छूट! अभी 24 घंटे का फ्री डेमो टेस्ट करें या ₹999 में लाइफटाइम प्लान पाएं।");
+  const [popupBtnText, setPopupBtnText] = useState("फ्री डेमो टेस्ट करें ›");
+  const [popupBtnLink, setPopupBtnLink] = useState("/#pricing");
 
   // Seed / Live Shop Data
   const [shops, setShops] = useState<ManagedShop[]>([
@@ -314,7 +338,102 @@ export default function SuperAdminMasterDashboard() {
     } catch (e) {
       // Pass
     }
+
+    // Fetch Global Platform Config (Pricing, Offers, Popup)
+    fetch("/api/admin/config")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.config) {
+          const cfg = data.config;
+          if (cfg.pricing) {
+            setPriceMonthly(String(cfg.pricing.monthly || 199));
+            setPriceYearly(String(cfg.pricing.yearly || 599));
+            setPriceLifetime(String(cfg.pricing.lifetime || 1299));
+          }
+          if (cfg.activeOffer) {
+            setOfferEnabled(Boolean(cfg.activeOffer.enabled));
+            setOfferTitle(cfg.activeOffer.title || "");
+            setOfferBadge(cfg.activeOffer.badge || "");
+            setOfferCode(cfg.activeOffer.couponCode || "");
+            setDiscountLifetime(String(cfg.activeOffer.discountedLifetimePrice || 999));
+            setDiscountYearly(String(cfg.activeOffer.discountedYearlyPrice || 499));
+            setOfferDesc(cfg.activeOffer.description || "");
+          }
+          if (cfg.globalPopup) {
+            setPopupEnabled(Boolean(cfg.globalPopup.enabled));
+            setPopupTitle(cfg.globalPopup.title || "");
+            setPopupBadge(cfg.globalPopup.badgeText || "");
+            setPopupMessage(cfg.globalPopup.message || "");
+            setPopupBtnText(cfg.globalPopup.btnText || "");
+            setPopupBtnLink(cfg.globalPopup.btnLink || "");
+          }
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const handleSavePricingOffer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        pricing: {
+          monthly: Number(priceMonthly) || 199,
+          yearly: Number(priceYearly) || 599,
+          lifetime: Number(priceLifetime) || 1299,
+        },
+        activeOffer: {
+          enabled: offerEnabled,
+          title: offerTitle,
+          badge: offerBadge,
+          couponCode: offerCode,
+          discountedLifetimePrice: Number(discountLifetime) || 999,
+          discountedYearlyPrice: Number(discountYearly) || 499,
+          description: offerDesc,
+        },
+      };
+
+      await fetch("/api/admin/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      triggerNotice("Pricing and Offers updated live across platform! ✓");
+    } catch (err) {
+      triggerNotice("Failed to save pricing: " + String(err));
+    }
+  };
+
+  const handleSavePopup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        globalPopup: {
+          enabled: popupEnabled,
+          title: popupTitle,
+          badgeText: popupBadge,
+          message: popupMessage,
+          btnText: popupBtnText,
+          btnLink: popupBtnLink,
+          showOnLanding: true,
+        },
+      };
+
+      await fetch("/api/admin/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      triggerNotice(
+        popupEnabled
+          ? "Promo Popup published live for all visitors! 🚀"
+          : "Promo Popup turned OFF successfully! ✓"
+      );
+    } catch (err) {
+      triggerNotice("Failed to update popup: " + String(err));
+    }
+  };
 
   const handleMasterLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -583,6 +702,22 @@ export default function SuperAdminMasterDashboard() {
                 }`}
               >
                 Sales (₹{totalRevenue.toLocaleString("en-IN")})
+              </button>
+              <button
+                onClick={() => setActiveTab("pricing")}
+                className={`px-3 py-1.5 rounded-lg transition ${
+                  activeTab === "pricing" ? "bg-amber-500 text-slate-950 font-black shadow" : "hover:text-white"
+                }`}
+              >
+                Pricing &amp; Offers 🏷️
+              </button>
+              <button
+                onClick={() => setActiveTab("popup")}
+                className={`px-3 py-1.5 rounded-lg transition ${
+                  activeTab === "popup" ? "bg-amber-500 text-slate-950 font-black shadow" : "hover:text-white"
+                }`}
+              >
+                Promo Popup 🎯
               </button>
               <button
                 onClick={() => setActiveTab("geo")}
@@ -993,6 +1128,375 @@ export default function SuperAdminMasterDashboard() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* 5. PRICING & SPECIAL OFFERS MANAGER */}
+        {(activeTab === "overview" || activeTab === "pricing") && (
+          <div className="bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold">
+                  <Sliders className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-white">
+                    Platform Pricing &amp; Festive Offers Manager 🏷️
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Change subscription plan prices and launch festive discount deals across the platform
+                  </p>
+                </div>
+              </div>
+
+              <span className="text-xs text-amber-400 font-mono font-bold bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
+                Live Cloud Sync Enabled
+              </span>
+            </div>
+
+            <form onSubmit={handleSavePricingOffer} className="space-y-6 text-xs">
+              {/* Row 1: The 3 Base Subscription Prices */}
+              <div className="space-y-2">
+                <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
+                  1. Base Subscription Plan Pricing:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Monthly Plan */}
+                  <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5">
+                    <label className="block text-[11px] font-bold text-slate-400">
+                      Monthly Plan (₹ / mo):
+                    </label>
+                    <div className="flex items-center gap-1.5 font-mono text-base font-bold text-white">
+                      <span>₹</span>
+                      <input
+                        type="number"
+                        value={priceMonthly}
+                        onChange={(e) => setPriceMonthly(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-bold text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-500">Regular: ₹199 / month</span>
+                  </div>
+
+                  {/* Yearly Plan */}
+                  <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5">
+                    <label className="block text-[11px] font-bold text-slate-400">
+                      Yearly Business (₹ / year):
+                    </label>
+                    <div className="flex items-center gap-1.5 font-mono text-base font-bold text-white">
+                      <span>₹</span>
+                      <input
+                        type="number"
+                        value={priceYearly}
+                        onChange={(e) => setPriceYearly(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-blue-400 font-bold text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-500">Regular: ₹599 (Best Seller)</span>
+                  </div>
+
+                  {/* Lifetime Plan */}
+                  <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5">
+                    <label className="block text-[11px] font-bold text-slate-400">
+                      Lifetime Supreme (₹ One-Time):
+                    </label>
+                    <div className="flex items-center gap-1.5 font-mono text-base font-bold text-white">
+                      <span>₹</span>
+                      <input
+                        type="number"
+                        value={priceLifetime}
+                        onChange={(e) => setPriceLifetime(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-amber-400 font-bold text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-500">Regular: ₹1,299 / lifetime</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Special Festive Offer / Coupon Setup */}
+              <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-850">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span className="font-extrabold text-sm text-white">
+                      2. Active Festive Offer / Discount Campaign
+                    </span>
+                  </div>
+
+                  {/* Toggle Active Switch */}
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <span className="text-xs font-bold text-slate-300">
+                      {offerEnabled ? "OFFER ACTIVE (Live)" : "OFFER DISABLED"}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={offerEnabled}
+                      onChange={(e) => setOfferEnabled(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <div
+                      className={`w-11 h-6 rounded-full transition relative ${
+                        offerEnabled ? "bg-emerald-500" : "bg-slate-700"
+                      }`}
+                    >
+                      <div
+                        className={`w-4 h-4 bg-white rounded-full absolute top-1 transition ${
+                          offerEnabled ? "left-6" : "left-1"
+                        }`}
+                      ></div>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                      Offer Title / Headline:
+                    </label>
+                    <input
+                      type="text"
+                      value={offerTitle}
+                      onChange={(e) => setOfferTitle(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      placeholder="e.g. ⚡ Special Launch Offer"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                      Badge Text:
+                    </label>
+                    <input
+                      type="text"
+                      value={offerBadge}
+                      onChange={(e) => setOfferBadge(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-amber-400 font-bold focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      placeholder="e.g. FLAT ₹300 OFF"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                      Coupon Code:
+                    </label>
+                    <input
+                      type="text"
+                      value={offerCode}
+                      onChange={(e) => setOfferCode(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white font-mono font-bold uppercase focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      placeholder="e.g. LAUNCH300"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                      Discounted Lifetime Price (₹):
+                    </label>
+                    <input
+                      type="number"
+                      value={discountLifetime}
+                      onChange={(e) => setDiscountLifetime(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-emerald-400 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      placeholder="999"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                    Offer Description (Shown in pricing cards):
+                  </label>
+                  <input
+                    type="text"
+                    value={offerDesc}
+                    onChange={(e) => setOfferDesc(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-slate-300 font-medium focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    placeholder="e.g. Get Lifetime Supreme Plan for just ₹999 (Limited to first 50 shops)"
+                  />
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex items-center justify-end">
+                <button
+                  type="submit"
+                  className="px-6 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs shadow-lg transition active:scale-95 flex items-center gap-2"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Save &amp; Publish Pricing / Offers</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* 6. GLOBAL PROMO POPUP MANAGER (WITH LIVE PREVIEW) */}
+        {(activeTab === "overview" || activeTab === "popup") && (
+          <div className="bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-pink-500 to-rose-600 flex items-center justify-center text-white font-bold">
+                  <Zap className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-white">
+                    Website Promo Popup Modal Manager 🎯
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Control the promotional popup that appears for visitors and shopkeepers on the website
+                  </p>
+                </div>
+              </div>
+
+              {/* Popup Toggle Switch */}
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <span className="text-xs font-bold text-slate-300">
+                  {popupEnabled ? "POPUP ACTIVE (Live on Site)" : "POPUP OFF"}
+                </span>
+                <input
+                  type="checkbox"
+                  checked={popupEnabled}
+                  onChange={(e) => setPopupEnabled(e.target.checked)}
+                  className="sr-only"
+                />
+                <div
+                  className={`w-11 h-6 rounded-full transition relative ${
+                    popupEnabled ? "bg-emerald-500" : "bg-slate-700"
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 bg-white rounded-full absolute top-1 transition ${
+                      popupEnabled ? "left-6" : "left-1"
+                    }`}
+                  ></div>
+                </div>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left Column: Form Controls (7 cols) */}
+              <form onSubmit={handleSavePopup} className="lg:col-span-7 space-y-4 text-xs">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                    Popup Badge Text:
+                  </label>
+                  <input
+                    type="text"
+                    value={popupBadge}
+                    onChange={(e) => setPopupBadge(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-amber-400 font-bold focus:outline-none focus:ring-1 focus:ring-pink-500"
+                    placeholder="e.g. LIMITED TIME OFFER"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                    Popup Headline / Title:
+                  </label>
+                  <input
+                    type="text"
+                    value={popupTitle}
+                    onChange={(e) => setPopupTitle(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-bold focus:outline-none focus:ring-1 focus:ring-pink-500"
+                    placeholder="e.g. 🎉 भारत का नंबर 1 क्लाउड प्रिंटिंग सॉफ्टवेयर"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                    Popup Message Body:
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={popupMessage}
+                    onChange={(e) => setPopupMessage(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-300 font-medium focus:outline-none focus:ring-1 focus:ring-pink-500"
+                    placeholder="e.g. साइबर कैफे और जन सेवा केंद्रों के लिए विशेष छूट!..."
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                      Button Text:
+                    </label>
+                    <input
+                      type="text"
+                      value={popupBtnText}
+                      onChange={(e) => setPopupBtnText(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-bold focus:outline-none focus:ring-1 focus:ring-pink-500"
+                      placeholder="e.g. फ्री डेमो टेस्ट करें ›"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                      Button Destination Link:
+                    </label>
+                    <input
+                      type="text"
+                      value={popupBtnLink}
+                      onChange={(e) => setPopupBtnLink(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sky-400 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-pink-500"
+                      placeholder="e.g. /#pricing or /demo"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white font-black text-xs shadow-lg shadow-pink-500/20 transition active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Save &amp; Update Promo Popup</span>
+                  </button>
+                </div>
+              </form>
+
+              {/* Right Column: Interactive Live Preview (5 cols) */}
+              <div className="lg:col-span-5 flex flex-col justify-center">
+                <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 text-center">
+                  Live Visitor View Preview:
+                </span>
+
+                <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 border-2 border-dashed border-blue-500/50 text-white text-center space-y-3 relative shadow-2xl">
+                  {/* Preview Close X */}
+                  <span className="absolute top-3 right-3 text-slate-500 text-xs font-bold">✕</span>
+
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-[9px] font-black uppercase tracking-wider">
+                    <span>{popupBadge || "SPECIAL OFFER"}</span>
+                  </div>
+
+                  <h4 className="text-base font-black text-white leading-tight">
+                    {popupTitle || "Popup Title Appears Here"}
+                  </h4>
+
+                  <p className="text-xs text-slate-300 leading-relaxed font-medium line-clamp-3">
+                    {popupMessage || "Popup message text will appear here."}
+                  </p>
+
+                  <div className="pt-2">
+                    <div className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-black text-xs shadow-md">
+                      {popupBtnText || "Button Text"}
+                    </div>
+                  </div>
+
+                  <span className="block text-[9px] text-slate-500 font-mono pt-1">
+                    Status: {popupEnabled ? "🟢 ACTIVE" : "⚪ DISABLED"} • Target: {popupBtnLink}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         )}

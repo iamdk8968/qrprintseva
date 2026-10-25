@@ -55,6 +55,18 @@ export default function HomePage() {
   const [contactCity, setContactCity] = useState("");
   const [contactSubmitted, setContactSubmitted] = useState(false);
 
+  // Platform Dynamic Config (Controlled by Founder in /admin)
+  const [platformConfig, setPlatformConfig] = useState<any>(null);
+
+  React.useEffect(() => {
+    fetch("/api/admin/config")
+      .then((res) => res.json())
+      .then((d) => {
+        if (d?.config) setPlatformConfig(d.config);
+      })
+      .catch(() => {});
+  }, []);
+
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
   };
@@ -623,7 +635,9 @@ export default function HomePage() {
             <div className="space-y-3">
               <span className="text-xs font-black text-slate-500 uppercase tracking-wider block">मंथली प्लान</span>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black text-slate-900">₹199</span>
+                <span className="text-4xl font-black text-slate-900">
+                  ₹{platformConfig?.pricing?.monthly ?? 199}
+                </span>
                 <span className="text-xs text-slate-500 font-bold">/ महीना</span>
               </div>
               <p className="text-xs text-slate-500">छोटे साइबर कैफे और ज़ेरॉक्स दुकानों के लिए।</p>
@@ -652,7 +666,9 @@ export default function HomePage() {
             <div className="space-y-3">
               <span className="text-xs font-black text-blue-600 uppercase tracking-wider block">ईयरली प्लान</span>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black text-slate-900">₹599</span>
+                <span className="text-4xl font-black text-slate-900">
+                  ₹{platformConfig?.pricing?.yearly ?? 599}
+                </span>
                 <span className="text-xs text-slate-500 font-bold">/ वर्ष (सिर्फ ₹50/माह)</span>
               </div>
               <p className="text-xs text-slate-500">व्यस्त दुकानों के लिए पूरा ऑटोमेशन पैक।</p>
@@ -673,15 +689,38 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* Plan 3: Lifetime */}
-          <div className="glass-card rounded-3xl p-6 bg-white border border-slate-200 shadow-sm flex flex-col justify-between space-y-5">
+          {/* Plan 3: Lifetime (Supports Dynamic Offer from Founder Master) */}
+          <div className="glass-card rounded-3xl p-6 bg-white border-2 border-purple-500/40 shadow-sm flex flex-col justify-between space-y-5 relative">
+            {platformConfig?.activeOffer?.enabled && (
+              <div className="absolute -top-3 right-4 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shadow">
+                {platformConfig.activeOffer.badge || "SPECIAL DEAL"}
+              </div>
+            )}
+
             <div className="space-y-3">
               <span className="text-xs font-black text-purple-600 uppercase tracking-wider block">लाइफ़टाइम लाइसेंस</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black text-slate-900">₹1,299</span>
+              <div className="flex items-baseline gap-2">
+                {platformConfig?.activeOffer?.enabled && platformConfig.activeOffer.discountedLifetimePrice ? (
+                  <>
+                    <span className="text-4xl font-black text-emerald-600 font-mono">
+                      ₹{platformConfig.activeOffer.discountedLifetimePrice}
+                    </span>
+                    <span className="text-xs text-slate-400 line-through font-bold">
+                      ₹{platformConfig?.pricing?.lifetime ?? 1299}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-4xl font-black text-slate-900">
+                    ₹{platformConfig?.pricing?.lifetime ?? 1299}
+                  </span>
+                )}
                 <span className="text-xs text-slate-500 font-bold">/ {language === "hi" ? "एक बार" : "One-time"}</span>
               </div>
-              <p className="text-xs text-slate-500">हमेशा के लिए फुर्सत — कोई रिन्यूअल फीस नहीं।</p>
+              <p className="text-xs text-slate-500">
+                {platformConfig?.activeOffer?.enabled && platformConfig.activeOffer.description
+                  ? platformConfig.activeOffer.description
+                  : "हमेशा के लिए फुर्सत — कोई रिन्यूअल फीस नहीं।"}
+              </p>
               <ul className="space-y-2 text-xs text-slate-600 pt-3 border-t border-slate-100">
                 <li className="flex items-center gap-2 font-bold text-slate-900">✓ सारे फीचर्स हमेशा के लिए</li>
                 <li className="flex items-center gap-2">✓ मल्टी-काउंटर / मल्टी-ऑपरेटर लॉगिन</li>
@@ -692,7 +731,7 @@ export default function HomePage() {
 
             <button
               onClick={() => setIsDemoModalOpen(true)}
-              className="w-full py-3 rounded-xl border border-slate-300 hover:border-slate-400 text-slate-700 font-bold text-xs transition"
+              className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition shadow-md"
             >
               24-Hr फ्री डेमो से शुरू करें
             </button>
