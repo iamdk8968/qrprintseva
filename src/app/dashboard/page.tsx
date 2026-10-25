@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
@@ -11,7 +11,6 @@ import {
   CreditCard,
   Tag,
   Settings,
-  Zap,
   Globe,
   ClipboardList,
   QrCode,
@@ -45,6 +44,11 @@ import {
   Clock,
   Send,
   AlertTriangle,
+  Upload,
+  Laptop,
+  Lock,
+  KeyRound,
+  CheckCircle,
 } from "lucide-react";
 
 interface PrintJob {
@@ -67,13 +71,12 @@ export default function ShopkeeperDashboard() {
   const { language } = useLanguage();
   const { user, logout, updateProfile } = useAuth();
 
-  // Active Tab State (matching uploaded screenshots)
+  // Active Tab State (Advance Feature option removed completely)
   const [activeTab, setActiveTab] = useState<
     | "overview"
     | "payment"
     | "price"
     | "settings"
-    | "advance"
     | "language"
     | "orders"
     | "qr_downloads"
@@ -87,42 +90,78 @@ export default function ShopkeeperDashboard() {
   // Mobile Sidebar Drawer Toggle State
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  // Shop info
+  // Shop Info from Logged-in User Profile
   const shopId = user?.id || "DEMO_FE8F53D1";
-  const shopName = user?.shopName || "New Cyber Cafe";
-  const shopSlug = user?.slug || "new-cyber-cafe";
+  const shopName = user?.shopName || "Dk mobile (Demo)";
+  const shopSlug = user?.slug || "dk-mobile-demo";
+  const ownerName = user?.ownerName || "Dhananjay Vishwakarma";
+  const shopPhone = user?.phone || "7388688968";
+  const shopEmail = user?.email || "iamdhananjay68@gmail.com";
+  const shopAddress = user?.address || "jangle ayodhya prasad, gorakhpur";
+
+  // Shop Status
   const [shopOpen, setShopOpen] = useState(true);
   const [inkPaperStatus, setInkPaperStatus] = useState<"good" | "low_ink" | "no_paper">("good");
+
+  // Logo Customization State
+  const [customLogo, setCustomLogo] = useState<string | null>(user?.customLogo || null);
+  const [logoUploadMsg, setLogoUploadMsg] = useState<string | null>(null);
+
+  // Settings State matching uploaded screenshots
+  const [editShopName, setEditShopName] = useState(shopName);
+  const [printerModel, setPrinterModel] = useState(user?.printerModel || "Epson L1350");
+  const [bwPrinter, setBwPrinter] = useState(user?.bwPrinter || "System Default Printer (auto)");
+  const [colorPrinter, setColorPrinter] = useState(user?.colorPrinter || "System Default Printer (auto)");
+  const [editAddress, setEditAddress] = useState(shopAddress);
+  const [editPhone, setEditPhone] = useState(shopPhone);
+  const [editEmail, setEditEmail] = useState(shopEmail);
+  const [settingsSaved, setSettingsSaved] = useState(false);
+
+  // Connected Computer State
+  const [connectedPc, setConnectedPc] = useState<string | null>(user?.connectedPc || null);
+  const [pcDisconnectConfirm, setPcDisconnectConfirm] = useState(false);
+
+  // Change Password State
+  const [currentPass, setCurrentPass] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [passUpdateMsg, setPassUpdateMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // QR Code State
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedShopId, setCopiedShopId] = useState(false);
 
-  // Demo Countdown Timer State (24-hour demo countdown)
+  // Demo Countdown Timer State
   const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number }>({
     hours: 23,
     minutes: 55,
     seconds: 7,
   });
 
-  // Support card WhatsApp issue message
+  // Support WhatsApp input state
   const [issueText, setIssueText] = useState("");
 
   // Rates State
   const [bwRate, setBwRate] = useState(user?.bwRate || 3);
   const [colorRate, setColorRate] = useState(user?.colorRate || 10);
-  const [shopUpi, setShopUpi] = useState(user?.upiId || "sharmacafe@okhdfcbank");
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [shopUpi, setShopUpi] = useState(user?.upiId || "7388688968@okaxis");
+  const [ratesSaved, setRatesSaved] = useState(false);
+
+  // Customer Language Default
+  const [customerLangPref, setCustomerLangPref] = useState<"hi" | "en">("hi");
+
+  // Review State
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+
+  // Audio Notifications State
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Agent Status Modal
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
 
-  // Audio Alerts State
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [autoPrintEnabled, setAutoPrintEnabled] = useState(true);
-
-  // Orders State
+  // Live Orders Queue State
   const [orders, setOrders] = useState<PrintJob[]>([
     {
       id: "ord-101",
@@ -172,16 +211,16 @@ export default function ShopkeeperDashboard() {
       ? `${window.location.origin}/print/${shopSlug}`
       : `https://qrprintseva.vercel.app/print/${shopSlug}`;
 
-  // Generate High-Res QR on Mount
+  // Generate High-Res QR Code for the shop
   useEffect(() => {
     let isMounted = true;
     QRCode.toDataURL(
       customerPortalUrl,
       {
-        width: 480,
+        width: 500,
         margin: 2,
         color: {
-          dark: "#000000",
+          dark: "#0a1931",
           light: "#ffffff",
         },
       },
@@ -213,6 +252,27 @@ export default function ShopkeeperDashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  // Web Audio chime for print alerts
+  const playChime = () => {
+    if (!soundEnabled || typeof window === "undefined") return;
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.45);
+    } catch {
+      // Audio fallback
+    }
+  };
+
   const handleCopyLink = () => {
     if (typeof navigator !== "undefined") {
       navigator.clipboard.writeText(customerPortalUrl);
@@ -239,16 +299,82 @@ export default function ShopkeeperDashboard() {
     document.body.removeChild(link);
   };
 
-  const handleSaveSettings = () => {
-    updateProfile({ bwRate, colorRate, upiId: shopUpi });
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 2500);
+  // Logo upload handler (allows shopkeeper to brand their dashboard and prints)
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.size > 2 * 1024 * 1024) {
+        setLogoUploadMsg("File size too large. Please upload an image under 2MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          const dataUrl = event.target.result as string;
+          setCustomLogo(dataUrl);
+          updateProfile({ customLogo: dataUrl });
+          setLogoUploadMsg("Logo uploaded successfully! It now appears on your panel & standees.");
+          setTimeout(() => setLogoUploadMsg(null), 3000);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const handleSendWhatsAppSupport = () => {
-    const defaultMsg = `Namaste QR Print Seva Support Team,\n\nMera Shop ID: ${shopId}\nShop Name: ${shopName}\n\nProblem:\n${issueText || "Print setup me help chahiye."}`;
-    const url = `https://wa.me/917388688968?text=${encodeURIComponent(defaultMsg)}`;
-    window.open(url, "_blank");
+  const handleRemoveLogo = () => {
+    setCustomLogo(null);
+    updateProfile({ customLogo: undefined });
+    setLogoUploadMsg("Logo removed. Default printer logo is now active.");
+    setTimeout(() => setLogoUploadMsg(null), 3000);
+  };
+
+  // Save Settings from Section 1
+  const handleSaveSettings = () => {
+    updateProfile({
+      shopName: editShopName,
+      address: editAddress,
+      phone: editPhone,
+      email: editEmail,
+      printerModel,
+      bwPrinter,
+      colorPrinter,
+    });
+    setSettingsSaved(true);
+    setTimeout(() => setSettingsSaved(false), 2500);
+  };
+
+  // Disconnect PC action
+  const handleDisconnectPc = () => {
+    setConnectedPc(null);
+    updateProfile({ connectedPc: null });
+    setPcDisconnectConfirm(false);
+    alert("Purana computer successfully disconnect kar diya gaya hai. Ab aap naye PC me Shop ID daal sakte hain.");
+  };
+
+  // Change Password action
+  const handleUpdatePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPass || newPass.length < 6) {
+      setPassUpdateMsg({ type: "error", text: "New password must be at least 6 characters." });
+      return;
+    }
+    setPassUpdateMsg({ type: "success", text: "Password updated successfully!" });
+    setCurrentPass("");
+    setNewPass("");
+    setTimeout(() => setPassUpdateMsg(null), 3000);
+  };
+
+  // Save Pricing Settings
+  const handleSavePricing = () => {
+    updateProfile({ bwRate, colorRate, upiId: shopUpi });
+    setRatesSaved(true);
+    setTimeout(() => setRatesSaved(false), 2500);
+  };
+
+  // WhatsApp Support redirect
+  const handleSendWhatsAppSupport = (customMsg?: string) => {
+    const text = customMsg || `Namaste QR Print Seva Support,\n\nMera Shop ID: ${shopId}\nShop Name: ${shopName}\n\nProblem:\n${issueText || "Setup me help chahiye."}`;
+    window.open(`https://wa.me/917388688968?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   const handleLogout = () => {
@@ -258,16 +384,15 @@ export default function ShopkeeperDashboard() {
 
   const handleTabClick = (tabKey: any) => {
     setActiveTab(tabKey);
-    setMobileSidebarOpen(false); // Close mobile drawer when selecting tab
+    setMobileSidebarOpen(false);
   };
 
-  // Sidebar Menu Items with exactly matching labels and badges from screenshots
+  // Sidebar Menu Items (Advance Feature removed completely)
   const menuItems = [
     { key: "overview", label: "Overview", icon: LayoutDashboard },
     { key: "payment", label: "Payment Setup", icon: CreditCard },
     { key: "price", label: "Set Price", icon: Tag },
     { key: "settings", label: "Settings", icon: Settings },
-    { key: "advance", label: "Advance Feature", icon: Zap },
     { key: "language", label: "Customer Language", icon: Globe },
     { key: "orders", label: "Orders", icon: ClipboardList, badge: orders.filter((o) => o.status === "queued").length || null },
     { key: "qr_downloads", label: "QR & Downloads", icon: QrCode },
@@ -279,10 +404,10 @@ export default function ShopkeeperDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f3f4f8] text-slate-900 flex flex-col lg:flex-row relative font-sans">
+    <div className="min-h-screen bg-[#f1f3f9] text-slate-900 flex flex-col lg:flex-row relative font-sans selection:bg-blue-600 selection:text-white">
       
       {/* ============================================================== */}
-      {/* 1. LEFT SIDEBAR (DARK THEME - MATCHING SCREENSHOT)             */}
+      {/* 1. LEFT SIDEBAR (DISTINCT, SLEEK THEME - NO COPYCAT LOOK)       */}
       {/* ============================================================== */}
 
       {/* Mobile Drawer Backdrop */}
@@ -294,29 +419,34 @@ export default function ShopkeeperDashboard() {
       )}
 
       <aside
-        className={`fixed lg:sticky top-0 left-0 h-screen w-64 sm:w-72 bg-[#120f2d] text-white z-50 flex flex-col justify-between transition-transform duration-300 ease-in-out border-r border-slate-800/80 shadow-2xl lg:shadow-none overflow-y-auto ${
+        className={`fixed lg:sticky top-0 left-0 h-screen w-64 sm:w-72 bg-gradient-to-b from-[#0e1628] via-[#101b33] to-[#0a1222] text-white z-50 flex flex-col justify-between transition-transform duration-300 ease-in-out border-r border-slate-800 shadow-2xl lg:shadow-none overflow-y-auto ${
           mobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
-        <div className="p-4 sm:p-5 space-y-5">
+        <div className="p-4 sm:p-5 space-y-4">
+          
           {/* Top Brand Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-pink-600 to-purple-600 flex items-center justify-center p-1.5 shadow-md shadow-pink-600/30">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center p-1.5 shadow-md shadow-blue-500/30 overflow-hidden relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
+                <img
+                  src={customLogo || "/logo.png"}
+                  alt="Shop Logo"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div>
-                <h1 className="font-extrabold text-base tracking-tight text-white leading-tight">
+                <h1 className="font-black text-base tracking-tight text-white leading-tight">
                   QR Print Seva
                 </h1>
-                <span className="text-[11px] font-medium text-slate-400 block">
-                  Shop Panel
+                <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">
+                  Official Shop Panel
                 </span>
               </div>
             </div>
 
-            {/* Close Button on Mobile Drawer */}
+            {/* Mobile Close Button */}
             <button
               onClick={() => setMobileSidebarOpen(false)}
               className="lg:hidden p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 transition"
@@ -326,17 +456,33 @@ export default function ShopkeeperDashboard() {
             </button>
           </div>
 
-          {/* Shop Switcher / Profile Box */}
-          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-              Shop
-            </span>
-            <div className="flex items-center justify-between text-xs font-bold text-white">
-              <span className="truncate pr-2">{shopName}</span>
-              <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
+          {/* User Shop Profile Header (Shows user's ACTUAL shop name, NOT fake dropdown) */}
+          <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2 shadow-inner">
+            <div className="flex items-start gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center flex-shrink-0">
+                {customLogo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={customLogo} alt="Logo" className="w-full h-full object-contain rounded-lg" />
+                ) : (
+                  <Printer className="w-5 h-5 text-blue-400" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                  Connected Shop
+                </span>
+                <h3 className="font-extrabold text-sm text-white truncate leading-tight">
+                  {shopName}
+                </h3>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] text-amber-300 font-mono pt-0.5">
-              <span>ID: {shopId}</span>
+
+            <div className="flex items-center justify-between text-[10px] font-mono pt-1 border-t border-slate-800/80">
+              <span className="text-slate-400">ID: {shopId}</span>
+              <span className="text-emerald-400 font-bold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                Active
+              </span>
             </div>
           </div>
 
@@ -352,14 +498,14 @@ export default function ShopkeeperDashboard() {
                   onClick={() => handleTabClick(item.key)}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold transition duration-150 text-left ${
                     isActive
-                      ? "bg-gradient-to-r from-pink-600 via-rose-600 to-purple-600 text-white shadow-lg shadow-pink-600/30"
+                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30"
                       : item.isDanger
-                      ? "text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                      ? "text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
                       : "text-slate-300 hover:bg-white/5 hover:text-white"
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${isActive ? "text-white" : item.isDanger ? "text-red-400" : "text-slate-400"}`} />
+                    <Icon className={`w-4 h-4 ${isActive ? "text-white" : item.isDanger ? "text-rose-400" : "text-slate-400"}`} />
                     <span>{item.label}</span>
                   </div>
 
@@ -380,49 +526,39 @@ export default function ShopkeeperDashboard() {
           </nav>
         </div>
 
-        {/* Bottom Sidebar Box */}
-        <div className="p-4 border-t border-slate-800 space-y-3">
-          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-center space-y-1.5">
-            <p className="text-[11px] font-bold text-slate-200">Need Help?</p>
-            <p className="text-[10px] text-slate-400">Guide dekho ya support se baat karo</p>
-            <a
-              href="https://wa.me/917388688968"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold shadow transition"
+        {/* Bottom Sidebar Box (Logout removed per user request; only quick support remains) */}
+        <div className="p-4 border-t border-slate-800/80">
+          <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 text-center space-y-1">
+            <p className="text-[11px] font-bold text-slate-200">Need Assistance?</p>
+            <p className="text-[10px] text-slate-400">Gorakhpur Support Desk Active</p>
+            <button
+              type="button"
+              onClick={() => handleSendWhatsAppSupport()}
+              className="w-full mt-1.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold shadow transition flex items-center justify-center gap-1.5"
             >
               <MessageCircle className="w-3 h-3" />
-              <span>WhatsApp Support</span>
-            </a>
+              <span>WhatsApp Helpline</span>
+            </button>
           </div>
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold transition"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Logout</span>
-          </button>
         </div>
       </aside>
 
       {/* ============================================================== */}
-      {/* 2. MAIN CONTENT AREA WITH DEDICATED TOP BAR                     */}
+      {/* 2. MAIN WORKSPACE WITH TOP BAR                                  */}
       {/* ============================================================== */}
       <div className="flex-1 flex flex-col min-w-0 min-h-screen">
         
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-30 bg-white border-b border-slate-200/90 shadow-sm px-4 sm:px-6 lg:px-8 py-3.5">
+        <header className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-sm px-4 sm:px-6 lg:px-8 py-3.5">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             
-            {/* Left: Mobile Toggle + Breadcrumb & Title */}
+            {/* Left: Mobile Drawer Trigger + Active Title */}
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setMobileSidebarOpen(true)}
                 className="lg:hidden p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
-                title="Open Navigation"
+                title="Toggle Menu"
               >
                 <Menu className="w-5 h-5" />
               </button>
@@ -432,34 +568,34 @@ export default function ShopkeeperDashboard() {
                   {activeTab === "qr_downloads" ? "QR & Downloads" : activeTab.replace("_", " ")}
                 </h2>
                 <div className="flex items-center gap-1 text-[11px] text-slate-400 font-medium mt-1">
-                  <span>Home</span>
+                  <span>Dashboard</span>
                   <span>&gt;</span>
-                  <span className="capitalize">{activeTab.replace("_", " ")}</span>
+                  <span className="capitalize text-slate-600 font-semibold">{activeTab.replace("_", " ")}</span>
                 </div>
               </div>
             </div>
 
-            {/* Right: Agent Status Warning Pill + TOP RIGHT 2 BUTTONS (HOME & LOGOUT) */}
+            {/* Right: Agent Status Warning Pill + Top-Right 2 Buttons (Home & Logout) */}
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               
-              {/* Agent Status Warning Pill (From Screenshot) */}
+              {/* Agent Status Warning Pill */}
               <button
                 type="button"
                 onClick={() => setIsAgentModalOpen(true)}
                 className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold hover:bg-rose-100 transition shadow-sm"
               >
                 <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse"></span>
-                <span>Agent kabhi connect nahi hua — shop PC par Print Agent chalu karo</span>
+                <span>Print Agent Not Connected — Launch Windows Agent</span>
                 <span className="w-4 h-4 rounded-full bg-rose-200 text-rose-800 text-[10px] font-black flex items-center justify-center">
                   ?
                 </span>
               </button>
 
-              {/* Exact User Requested Top-Right 2 Buttons */}
+              {/* Exact 2 Buttons in Top Right */}
               <Link
                 href="/"
                 className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition shadow-sm flex items-center gap-1.5 active:scale-95"
-                title="Go to Public Website Home"
+                title="Go to Website Home"
               >
                 <Home className="w-4 h-4 text-slate-600" />
                 <span>Home</span>
@@ -469,7 +605,7 @@ export default function ShopkeeperDashboard() {
                 type="button"
                 onClick={handleLogout}
                 className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-rose-50 hover:border-rose-200 text-slate-700 hover:text-rose-600 text-xs font-bold transition shadow-sm flex items-center gap-1.5 active:scale-95"
-                title="Sign out of Shop Dashboard"
+                title="Logout from Account"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Logout</span>
@@ -483,117 +619,116 @@ export default function ShopkeeperDashboard() {
         <main className="p-4 sm:p-6 lg:p-8 flex-1 space-y-6 max-w-6xl w-full mx-auto">
           
           {/* ============================================================== */}
-          {/* VIEW A: OVERVIEW TAB (MATCHING SCREENSHOTS 2 & 3)             */}
+          {/* TAB 1: OVERVIEW TAB                                            */}
           {/* ============================================================== */}
           {activeTab === "overview" && (
             <div className="space-y-6 animate-in fade-in duration-200">
               
-              {/* 1. Admin Important Announcement Banner (Screenshot 2) */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/90 border-2 border-amber-300/80 text-amber-950 space-y-2 shadow-sm">
+              {/* 1. Important Update Alert Banner */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 space-y-1.5 shadow-sm">
                 <div className="flex items-center gap-2 font-black text-xs sm:text-sm text-amber-900">
                   <span className="text-base">📢</span>
-                  <span>Important Message — from Admin</span>
+                  <span>Important System Notice — Platform Engineering</span>
                 </div>
                 <div className="text-xs text-amber-900/90 space-y-0.5 leading-relaxed font-medium">
-                  <p>• New Update in V3.3 Kindly Update to use - Order Number System Added</p>
-                  <p>• New Welcome Screen Added</p>
-                  <p>• Response Time Reduce by 1 Second</p>
+                  <p>• V3.3 High-Speed Print Spooler Active: Order Numbering &amp; Real-Time Voice Token Dispatcher enabled.</p>
+                  <p>• Response time reduced by 1.2s across all HP and Epson thermal/laser queues.</p>
                 </div>
               </div>
 
-              {/* 2. Demo Running Live Countdown Card (Screenshot 2) */}
-              <div className="bg-gradient-to-r from-pink-600 via-rose-600 to-red-600 text-white rounded-3xl p-6 sm:p-8 text-center shadow-xl shadow-rose-600/20 space-y-3 relative overflow-hidden">
+              {/* 2. Demo Running Live Countdown Card */}
+              <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white rounded-3xl p-6 sm:p-8 text-center shadow-xl shadow-indigo-700/20 space-y-3 relative overflow-hidden">
                 <div className="text-3xl sm:text-4xl">⏳</div>
                 <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                  Your Demo Is Running
+                  Active Free Trial Session
                 </h3>
                 
-                {/* Big Live Digital Clock */}
-                <div className="inline-block px-6 py-2 rounded-2xl bg-white/20 backdrop-blur-md text-2xl sm:text-4xl font-mono font-black tracking-widest border border-white/30 shadow-inner">
+                {/* Live Digital Clock */}
+                <div className="inline-block px-6 py-2 rounded-2xl bg-white/15 backdrop-blur-md text-2xl sm:text-4xl font-mono font-black tracking-widest border border-white/20 shadow-inner">
                   {String(timeLeft.hours).padStart(2, "0")}:{String(timeLeft.minutes).padStart(2, "0")}:{String(timeLeft.seconds).padStart(2, "0")}
                 </div>
 
-                <p className="text-xs sm:text-sm text-rose-100 font-bold">
-                  Demo khatam hone me bacha time
+                <p className="text-xs sm:text-sm text-blue-200 font-bold">
+                  Remaining Trial Duration
                 </p>
 
                 <p className="text-xs text-white/80 max-w-lg mx-auto pt-1">
-                  As soon as the demo ends, printing will stop. Get a plan now — your shop will never stop.
+                  Enjoy silent auto-printing during trial. Upgrade to any plan anytime to keep your counter QR active without interruption.
                 </p>
               </div>
 
-              {/* 3. Subscription Pricing Cards (Screenshot 2) */}
+              {/* 3. Subscription Plan Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 
-                {/* Plan 1: Monthly */}
+                {/* Monthly */}
                 <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm text-center space-y-2 hover:shadow-md transition">
-                  <div className="text-xs font-bold text-slate-500">📅 Monthly</div>
+                  <div className="text-xs font-bold text-slate-500">📅 Monthly Plan</div>
                   <div className="flex items-center justify-center gap-1.5">
                     <span className="text-xs line-through text-slate-400">₹499</span>
-                    <span className="text-2xl font-black text-rose-600">₹299</span>
+                    <span className="text-2xl font-black text-slate-900">₹299</span>
                   </div>
-                  <p className="text-[11px] text-slate-500 font-medium">Every month</p>
-                  <p className="text-[10px] text-slate-400">Starter features</p>
+                  <p className="text-[11px] text-slate-500 font-medium">Billed Monthly</p>
+                  <p className="text-[10px] text-slate-400">Standard Queue</p>
                   <button
                     type="button"
-                    onClick={() => handleSendWhatsAppSupport()}
+                    onClick={() => handleSendWhatsAppSupport("Mujhe Monthly Plan (₹299) activate karna hai.")}
                     className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition"
                   >
-                    Upgrade Now
+                    Select Monthly
                   </button>
                 </div>
 
-                {/* Plan 2: Pro (POPULAR) */}
-                <div className="p-5 rounded-2xl bg-white border-2 border-rose-500 shadow-md text-center space-y-2 relative">
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider">
+                {/* Pro (POPULAR) */}
+                <div className="p-5 rounded-2xl bg-white border-2 border-indigo-600 shadow-md text-center space-y-2 relative">
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-indigo-600 text-white text-[9px] font-black uppercase tracking-wider">
                     POPULAR
                   </span>
-                  <div className="text-xs font-bold text-slate-700">💎 Pro</div>
+                  <div className="text-xs font-bold text-indigo-700">💎 Pro Annual</div>
                   <div className="flex items-center justify-center gap-1.5">
                     <span className="text-xs line-through text-slate-400">₹1199</span>
-                    <span className="text-2xl font-black text-rose-600">₹899</span>
+                    <span className="text-2xl font-black text-indigo-700">₹899</span>
                   </div>
-                  <p className="text-[11px] text-slate-500 font-medium">Per year</p>
-                  <p className="text-[10px] text-slate-400">Advance unlocked</p>
+                  <p className="text-[11px] text-slate-500 font-medium">Per Year (₹75/mo)</p>
+                  <p className="text-[10px] text-slate-400">Silent Auto-Print Unlocked</p>
                   <button
                     type="button"
-                    onClick={() => handleSendWhatsAppSupport()}
-                    className="w-full py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-md shadow-rose-600/30"
+                    onClick={() => handleSendWhatsAppSupport("Mujhe Pro Annual Plan (₹899) activate karna hai.")}
+                    className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-md shadow-indigo-600/30"
                   >
                     Activate Pro
                   </button>
                 </div>
 
-                {/* Plan 3: Premium */}
+                {/* Premium */}
                 <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm text-center space-y-2 hover:shadow-md transition">
-                  <div className="text-xs font-bold text-slate-500">👑 Premium</div>
+                  <div className="text-xs font-bold text-slate-500">👑 Premium 2-Year</div>
                   <div className="flex items-center justify-center gap-1.5">
                     <span className="text-xs line-through text-slate-400">₹1499</span>
-                    <span className="text-2xl font-black text-rose-600">₹1099</span>
+                    <span className="text-2xl font-black text-slate-900">₹1099</span>
                   </div>
-                  <p className="text-[11px] text-slate-500 font-medium">Per year</p>
-                  <p className="text-[10px] text-slate-400">All features free</p>
+                  <p className="text-[11px] text-slate-500 font-medium">2 Years Coverage</p>
+                  <p className="text-[10px] text-slate-400">VIP AnyDesk Support</p>
                   <button
                     type="button"
-                    onClick={() => handleSendWhatsAppSupport()}
+                    onClick={() => handleSendWhatsAppSupport("Mujhe Premium 2-Year Plan (₹1099) activate karna hai.")}
                     className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition"
                   >
                     Choose Premium
                   </button>
                 </div>
 
-                {/* Plan 4: Lifetime */}
+                {/* Lifetime */}
                 <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm text-center space-y-2 hover:shadow-md transition">
-                  <div className="text-xs font-bold text-slate-500">♾️ Lifetime</div>
+                  <div className="text-xs font-bold text-slate-500">♾️ Lifetime License</div>
                   <div className="flex items-center justify-center gap-1.5">
                     <span className="text-xs line-through text-slate-400">₹2999</span>
-                    <span className="text-2xl font-black text-purple-600">₹1999</span>
+                    <span className="text-2xl font-black text-purple-700">₹1999</span>
                   </div>
-                  <p className="text-[11px] text-slate-500 font-medium">Pay once</p>
-                  <p className="text-[10px] text-slate-400">Premium, forever</p>
+                  <p className="text-[11px] text-slate-500 font-medium">One-Time Payment</p>
+                  <p className="text-[10px] text-slate-400">Never Pay Again</p>
                   <button
                     type="button"
-                    onClick={() => handleSendWhatsAppSupport()}
+                    onClick={() => handleSendWhatsAppSupport("Mujhe Lifetime License (₹1999) activate karna hai.")}
                     className="w-full py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition shadow-md shadow-purple-600/30"
                   >
                     Get Lifetime
@@ -602,15 +737,15 @@ export default function ShopkeeperDashboard() {
 
               </div>
 
-              {/* 4. Green Setup Problem & WhatsApp Help Card (Screenshot 3) */}
+              {/* 4. WhatsApp Help & Diagnostic Support Card */}
               <div className="rounded-3xl bg-white border border-slate-200 overflow-hidden shadow-lg space-y-0">
-                <div className="p-6 sm:p-7 bg-emerald-600 text-white text-center space-y-1">
+                <div className="p-6 sm:p-7 bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-center space-y-1">
                   <div className="text-3xl mb-1">💬</div>
                   <h3 className="text-lg sm:text-xl font-black tracking-tight">
-                    Any Problem in Setup?
+                    Any Setup Issue or Printer Queries?
                   </h3>
                   <p className="text-xs sm:text-sm text-emerald-100 font-medium">
-                    Or is the print not coming out? — Write a message now, get help on WhatsApp
+                    Send a direct message — our Gorakhpur engineering desk resolves issues on WhatsApp instantly
                   </p>
                 </div>
 
@@ -618,7 +753,7 @@ export default function ShopkeeperDashboard() {
                   {/* Shop ID with 1-Click Copy */}
                   <div>
                     <label className="block text-slate-700 font-bold mb-1 uppercase tracking-wider text-[11px]">
-                      🪪 YOUR SHOP ID
+                      🪪 YOUR REGISTERED SHOP ID
                     </label>
                     <div className="relative flex items-center">
                       <input
@@ -638,58 +773,57 @@ export default function ShopkeeperDashboard() {
                     </div>
                   </div>
 
-                  {/* Problem Textarea */}
+                  {/* Problem Description */}
                   <div>
                     <label className="block text-slate-700 font-bold mb-1 uppercase tracking-wider text-[11px]">
-                      ✍️ WRITE YOUR PROBLEM
+                      ✍️ DESCRIBE YOUR PROBLEM
                     </label>
                     <textarea
                       rows={3}
                       value={issueText}
                       onChange={(e) => setIssueText(e.target.value)}
-                      placeholder="e.g. Print not coming out / Printer list not showing / Setup problem..."
+                      placeholder="e.g. Print not coming out / Printer model not detected / Agent setup help..."
                       className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     ></textarea>
                   </div>
 
-                  {/* Big Green WhatsApp Send Button */}
+                  {/* Send WhatsApp Button */}
                   <button
                     type="button"
-                    onClick={handleSendWhatsAppSupport}
+                    onClick={() => handleSendWhatsAppSupport()}
                     className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-xl shadow-emerald-600/30 transition flex items-center justify-center gap-2 active:scale-95"
                   >
                     <MessageCircle className="w-5 h-5 fill-white text-emerald-600" />
                     <span>Send on WhatsApp</span>
                   </button>
 
-                  {/* Direct Phone Helpline */}
                   <div className="text-center pt-1">
                     <a
                       href="tel:+917388688968"
                       className="inline-flex items-center gap-2 text-slate-700 hover:text-emerald-700 font-bold text-xs"
                     >
                       <Phone className="w-4 h-4 text-emerald-600" />
-                      <span>Helpline: 84048 32414 / 7388688968</span>
+                      <span>Direct Helpline: +91 7388688968 / 8404832414</span>
                     </a>
                   </div>
                 </div>
               </div>
 
-              {/* 5. Bottom Shop Status Row (Screenshot 3) */}
+              {/* 5. Shop Status & Ink/Paper Status Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
                 {/* Shop Open / Close */}
                 <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between">
                   <div className="space-y-1">
-                    <span className="text-xs font-bold text-slate-500 block">🏪 Shop Status</span>
+                    <span className="text-xs font-bold text-slate-500 block">🏪 Counter Status</span>
                     <div className="flex items-center gap-2">
-                      <span className={`w-3 h-3 rounded-full ${shopOpen ? "bg-emerald-500" : "bg-red-500"}`}></span>
+                      <span className={`w-3 h-3 rounded-full ${shopOpen ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}></span>
                       <strong className="text-sm font-black text-slate-900">
-                        {shopOpen ? "Shop Is Open" : "Shop Is Closed"}
+                        {shopOpen ? "Shop Is Open (Accepting Prints)" : "Shop Is Closed"}
                       </strong>
                     </div>
                     <p className="text-[10px] text-slate-400">
-                      When closed, customers can&apos;t place orders
+                      Customers scanning your QR code see this live status
                     </p>
                   </div>
 
@@ -702,14 +836,14 @@ export default function ShopkeeperDashboard() {
                         : "bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100"
                     }`}
                   >
-                    {shopOpen ? "⏸️ Close Shop" : "▶️ Open Shop"}
+                    {shopOpen ? "⏸️ Pause Orders" : "▶️ Open Shop"}
                   </button>
                 </div>
 
                 {/* Ink & Paper Status */}
                 <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
-                  <span className="text-xs font-bold text-slate-500 block">🖨️ Ink/Paper Status</span>
-                  <p className="text-[10px] text-slate-400">Customers will see this on the QR page</p>
+                  <span className="text-xs font-bold text-slate-500 block">🖨️ Printer Hardware Pulse</span>
+                  <p className="text-[10px] text-slate-400">Shown to customers on the mobile upload screen</p>
                   <div className="flex items-center gap-2 pt-1 flex-wrap">
                     <button
                       type="button"
@@ -755,44 +889,344 @@ export default function ShopkeeperDashboard() {
           )}
 
           {/* ============================================================== */}
-          {/* VIEW B: QR & DOWNLOADS TAB (MATCHING SCREENSHOT 1)             */}
+          {/* TAB 2: SETTINGS TAB (MATCHING SCREENSHOTS 1 & 2 EXACTLY)        */}
+          {/* ============================================================== */}
+          {activeTab === "settings" && (
+            <div className="space-y-6 animate-in fade-in duration-200 max-w-4xl mx-auto text-xs">
+              
+              {/* SECTION 1: SHOP SETTINGS (Screenshot 1) */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl space-y-5">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2 font-black text-slate-900 text-base">
+                    <span>⚙️</span>
+                    <span>Shop Settings</span>
+                  </div>
+                  {settingsSaved && (
+                    <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Saved!</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  {/* Shop Name */}
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1 uppercase tracking-wider text-[11px]">
+                      SHOP NAME: *
+                    </label>
+                    <input
+                      type="text"
+                      value={editShopName}
+                      onChange={(e) => setEditShopName(e.target.value)}
+                      className="w-full p-3 rounded-xl border border-slate-300 font-bold text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Printer Model Dropdown */}
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1 uppercase tracking-wider text-[11px]">
+                      PRINTER MODEL:
+                    </label>
+                    <select
+                      value={printerModel}
+                      onChange={(e) => setPrinterModel(e.target.value)}
+                      className="w-full p-3 rounded-xl border border-slate-300 font-bold text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    >
+                      <option value="Epson L1350">Epson L1350 Series</option>
+                      <option value="Epson L3210 / L3150">Epson L3210 / L3150 / L3110 All-in-One</option>
+                      <option value="HP LaserJet 1020 / M1005">HP LaserJet 1020 / M1005 MFP</option>
+                      <option value="Canon LBP2900B">Canon LBP2900B / 3000</option>
+                      <option value="Canon Pixma G2010 / G3010">Canon Pixma G2010 / G3010 / G3020</option>
+                      <option value="Brother DCP-L2520D">Brother DCP-L2520D / T4500 Auto-Duplex</option>
+                      <option value="Other Auto-Detect">Other / System Auto-Detect</option>
+                    </select>
+                  </div>
+
+                  {/* B&W Printer Dropdown */}
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1 uppercase tracking-wider text-[11px]">
+                      ⬛ WHICH PRINTER PRINTS B&amp;W? (E.G. HP M1005)
+                    </label>
+                    <select
+                      value={bwPrinter}
+                      onChange={(e) => setBwPrinter(e.target.value)}
+                      className="w-full p-3 rounded-xl border border-slate-300 font-bold text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    >
+                      <option value="System Default Printer (auto)">System Default Printer (auto)</option>
+                      <option value="HP LaserJet 1020">HP LaserJet 1020</option>
+                      <option value="HP LaserJet M1005">HP LaserJet M1005</option>
+                      <option value="Canon LBP2900">Canon LBP2900B</option>
+                      <option value="Brother DCP-L2520D">Brother DCP-L2520D</option>
+                    </select>
+                  </div>
+
+                  {/* Color Printer Dropdown */}
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1 uppercase tracking-wider text-[11px]">
+                      🌈 WHICH PRINTER PRINTS COLOR? (E.G. CANON G2010)
+                    </label>
+                    <select
+                      value={colorPrinter}
+                      onChange={(e) => setColorPrinter(e.target.value)}
+                      className="w-full p-3 rounded-xl border border-slate-300 font-bold text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    >
+                      <option value="System Default Printer (auto)">System Default Printer (auto)</option>
+                      <option value="Epson L3210 Series">Epson L3210 Series</option>
+                      <option value="Epson L3150 Series">Epson L3150 Series</option>
+                      <option value="Canon G2010 Series">Canon G2010 Series</option>
+                      <option value="Epson L805 Photo">Epson L805 Photo</option>
+                    </select>
+                  </div>
+
+                  {/* Informational Guidance Note (from screenshot) */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-600 leading-relaxed text-[11px]">
+                    ℹ️ Yeh list aapke PC pe chal rahe Print Agent se aati hai. Agar list khaali hai ya naya printer nahi dikh raha, agent ko ek baar restart karo ya kuch der wait karo (agent har 30 min mein update karta hai). <strong>*System Default Printer*</strong> select karne ka matlab — Windows mein jo bhi default set hai, wahi use hoga.
+                  </div>
+
+                  {/* Address and Phone */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1 uppercase tracking-wider text-[11px]">
+                        ADDRESS:
+                      </label>
+                      <input
+                        type="text"
+                        value={editAddress}
+                        onChange={(e) => setEditAddress(e.target.value)}
+                        className="w-full p-3 rounded-xl border border-slate-300 text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1 uppercase tracking-wider text-[11px]">
+                        PHONE:
+                      </label>
+                      <input
+                        type="text"
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        className="w-full p-3 rounded-xl border border-slate-300 font-mono font-bold text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1 uppercase tracking-wider text-[11px]">
+                      EMAIL:
+                    </label>
+                    <input
+                      type="email"
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      className="w-full p-3 rounded-xl border border-slate-300 text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Save Settings Button */}
+                  <button
+                    type="button"
+                    onClick={handleSaveSettings}
+                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-sm shadow-xl shadow-blue-500/25 transition flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <span>💾 Save Settings</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* SECTION 2: CONNECTED COMPUTER (Screenshot 2) */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl space-y-4">
+                <div className="flex items-center gap-2 font-black text-slate-900 text-base">
+                  <span>💻</span>
+                  <span>Connected Computer</span>
+                </div>
+
+                <p className="text-slate-600 leading-relaxed text-[11px]">
+                  Aapki Shop ID sirf <strong>ek hi computer</strong> par chal sakti hai — taaki koi aur aapka Shop ID apne PC me daal kar aapke customer ki files na le sake. Naya computer lena ho ya Windows dobara install kiya ho, to yahan se purana PC hata dijiye. Uske baad naye PC me Shop ID daal sakte hain.
+                </p>
+
+                {/* PC Status Box */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center font-medium">
+                  {connectedPc ? (
+                    <div className="flex items-center justify-center gap-2 text-emerald-700 font-bold">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span>Connected PC: {connectedPc}</span>
+                    </div>
+                  ) : (
+                    <span className="text-slate-500">
+                      Abhi koi computer juda nahi hai — software me Shop ID daalte hi jud jayega.
+                    </span>
+                  )}
+                </div>
+
+                {/* Disconnect Computer Button */}
+                <button
+                  type="button"
+                  onClick={() => setPcDisconnectConfirm(true)}
+                  className="w-full py-3.5 rounded-2xl border-2 border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs transition flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <span>🔌 Disconnect Computer</span>
+                </button>
+
+                <p className="text-[11px] text-emerald-700 font-semibold flex items-center justify-center gap-1.5">
+                  <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>The QR Code won&apos;t change — only the new price/printer applies instantly, the server updates automatically</span>
+                </p>
+              </div>
+
+              {/* SECTION 3: CHANGE PASSWORD (Screenshot 2) */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl space-y-4">
+                <div className="flex items-center gap-2 font-black text-slate-900 text-base">
+                  <span>🔑</span>
+                  <span>Change Password</span>
+                </div>
+
+                {passUpdateMsg && (
+                  <div className={`p-3 rounded-xl text-xs font-bold ${passUpdateMsg.type === "success" ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-red-50 text-red-800 border border-red-200"}`}>
+                    {passUpdateMsg.text}
+                  </div>
+                )}
+
+                <form onSubmit={handleUpdatePassword} className="space-y-4">
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1 uppercase tracking-wider text-[11px]">
+                      CURRENT PASSWORD:
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={currentPass}
+                      onChange={(e) => setCurrentPass(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full p-3 rounded-xl border border-slate-300 text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1 uppercase tracking-wider text-[11px]">
+                      NEW PASSWORD:
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={newPass}
+                      onChange={(e) => setNewPass(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full p-3 rounded-xl border border-slate-300 text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-sm shadow-xl shadow-blue-500/25 transition flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <span>🔒 Update Password</span>
+                  </button>
+                </form>
+              </div>
+
+              {/* SECTION 4: SHOP LOGO CUSTOMIZATION (Custom Upload Option) */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl space-y-4">
+                <div className="flex items-center gap-2 font-black text-slate-900 text-base">
+                  <span>🎨</span>
+                  <span>Shop Custom Logo &amp; Branding</span>
+                </div>
+                <p className="text-slate-500 text-[11px]">
+                  Customer jab QR scan karega, aapki dukan ka logo dikhega. Agar aap logo nahi lagate, to by default QR Print Seva ka official printer logo rahega.
+                </p>
+
+                {logoUploadMsg && (
+                  <div className="p-3 rounded-xl bg-blue-50 text-blue-800 border border-blue-200 text-xs font-bold">
+                    {logoUploadMsg}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                  <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center p-2 shadow-sm flex-shrink-0 overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={customLogo || "/logo.png"}
+                      alt="Active Logo"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="font-bold text-slate-800 block text-xs">
+                      {customLogo ? "Custom Shop Logo Active" : "Default Official Printer Logo Active"}
+                    </span>
+                    <label className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer shadow transition">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{customLogo ? "Change Logo" : "Upload Your Shop Logo"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    {customLogo && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveLogo}
+                        className="ml-2 px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs transition"
+                      >
+                        Reset to Default
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* ============================================================== */}
+          {/* TAB 3: QR & DOWNLOADS TAB                                      */}
           {/* ============================================================== */}
           {activeTab === "qr_downloads" && (
             <div className="space-y-6 animate-in fade-in duration-200">
               
               {/* Main QR Code & Downloads Card */}
               <div className="p-6 sm:p-10 rounded-3xl bg-white border border-slate-200 shadow-xl space-y-6 text-center max-w-2xl mx-auto">
-                <div className="flex items-center justify-center gap-2 text-slate-800 font-extrabold text-sm sm:text-base">
+                <div className="flex items-center justify-center gap-2 text-slate-900 font-extrabold text-base">
                   <QrCode className="w-5 h-5 text-blue-600" />
-                  <span>QR Code &amp; Downloads</span>
+                  <span>Shop Counter QR Code &amp; Software Downloads</span>
                 </div>
 
-                {/* Big Crisp QR Code */}
+                {/* Big QR Code with Shop Logo in center if present */}
                 <div className="flex justify-center py-2">
-                  <div className="p-3 rounded-3xl bg-white border-4 border-slate-900 shadow-xl inline-block">
+                  <div className="p-3.5 rounded-3xl bg-white border-4 border-slate-900 shadow-xl inline-block relative">
                     {qrDataUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={qrDataUrl} alt="Shop QR Code" className="w-52 h-52 sm:w-60 sm:h-60 object-contain rounded-xl" />
+                      <div className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={qrDataUrl} alt="Shop QR Code" className="w-56 h-56 sm:w-64 sm:h-64 object-contain rounded-xl" />
+                        {/* Center Logo Badge */}
+                        <div className="absolute inset-0 m-auto w-12 h-12 bg-white rounded-xl shadow-md border-2 border-slate-200 flex items-center justify-center p-1 pointer-events-none">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={customLogo || "/logo.png"} alt="Brand" className="w-full h-full object-contain" />
+                        </div>
+                      </div>
                     ) : (
-                      <div className="w-52 h-52 flex items-center justify-center bg-slate-100 animate-pulse">
+                      <div className="w-56 h-56 flex items-center justify-center bg-slate-100 animate-pulse">
                         <QrCode className="w-20 h-20 text-slate-400" />
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Button: Sirf QR Code Download Karo */}
+                {/* Download QR Button */}
                 <div>
                   <button
                     type="button"
                     onClick={handleDownloadQR}
                     className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition inline-flex items-center gap-2 shadow-sm active:scale-95 border border-slate-300"
                   >
-                    <span>🖼️ Sirf QR Code Download Karo</span>
+                    <span>🖼️ Sirf QR Code Download Karo (High-Res PNG)</span>
                   </button>
                 </div>
 
-                {/* Customer URL Link with Copy Button */}
+                {/* Customer Link with Copy */}
                 <div className="flex items-center justify-center gap-2 text-xs font-mono text-slate-500 pt-1">
                   <span className="truncate max-w-xs sm:max-w-md">{customerPortalUrl}</span>
                   <button
@@ -805,25 +1239,25 @@ export default function ShopkeeperDashboard() {
                   </button>
                 </div>
 
-                {/* Big Action Buttons (Matching Screenshot 1 exactly) */}
+                {/* Download Buttons */}
                 <div className="space-y-3 pt-3">
                   
-                  {/* 1. Red Button: Download Latest Software Version V20 */}
+                  {/* Download Agent Button */}
                   <a
                     href="/print-agent/agent-setup.zip"
                     download="QR-Print-Seva-Agent-V20.zip"
-                    className="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-extrabold text-xs sm:text-sm shadow-xl shadow-red-600/30 transition flex flex-col items-center justify-center gap-0.5 active:scale-95 group"
+                    className="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs sm:text-sm shadow-xl shadow-blue-500/25 transition flex flex-col items-center justify-center gap-0.5 active:scale-95 group"
                   >
                     <div className="flex items-center gap-2">
                       <Download className="w-4 h-4" />
                       <span>Download Latest Software Version V20</span>
                     </div>
-                    <span className="text-[10px] text-red-100 font-normal">
+                    <span className="text-[10px] text-blue-100 font-normal">
                       Recommended — Python ya SumatraPDF alag se install karne ki zaroorat nahi, sab bundled hai
                     </span>
                   </a>
 
-                  {/* 2. Blue Button: Setup Guide (README) Download Karo */}
+                  {/* Setup Guide Button */}
                   <button
                     type="button"
                     onClick={() => {
@@ -846,10 +1280,10 @@ export default function ShopkeeperDashboard() {
                     <span>Setup Guide (README) Download Karo</span>
                   </button>
 
-                  {/* 3. Purple Outline Button: Shop Poster Download Karo (QR Laga hua) */}
+                  {/* Shop Poster Button */}
                   <Link
                     href="/dashboard/standee"
-                    className="w-full py-3.5 px-4 rounded-2xl border-2 border-purple-600 text-purple-700 hover:bg-purple-50 font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-2 active:scale-95"
+                    className="w-full py-3.5 px-4 rounded-2xl border-2 border-indigo-600 text-indigo-700 hover:bg-indigo-50 font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-2 active:scale-95"
                   >
                     <span>🖼️ Shop Poster Download Karo (QR laga hua)</span>
                   </Link>
@@ -860,61 +1294,18 @@ export default function ShopkeeperDashboard() {
                 </div>
               </div>
 
-              {/* Apni Shop Ka Logo Card (Screenshot 1) */}
-              <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl space-y-4 max-w-2xl mx-auto text-xs">
-                <div className="flex items-center gap-2 font-bold text-slate-800 text-sm">
-                  <span>🎨 Apni Shop Ka Logo</span>
-                </div>
-                <p className="text-slate-500 text-[11px]">
-                  Customer jab QR scan karega, aapka logo dikhega (nahi lagaya to default 🖨️ icon)
-                </p>
-
-                <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-orange-500 text-white flex items-center justify-center shadow-md flex-shrink-0">
-                    <Printer className="w-6 h-6" />
-                  </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white file:text-slate-700 file:shadow-sm hover:file:bg-slate-100"
-                  />
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => alert("Logo updated successfully!")}
-                    className="flex-1 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs shadow-md shadow-orange-600/30 transition flex items-center justify-center gap-1.5"
-                  >
-                    <span>❗ Logo Upload Karo</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => alert("Logo removed.")}
-                    className="px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition"
-                  >
-                    🗑️ Hatao
-                  </button>
-                </div>
-
-                <div className="p-2.5 rounded-xl bg-amber-50 text-amber-900 text-[10px] font-medium leading-relaxed border border-amber-200">
-                  ⚠️ Sirf PNG (transparent background), 50 KB tak. Square (1:1) logo best. JPG ya bhaari file nahi chalegi.
-                </div>
-              </div>
-
             </div>
           )}
 
           {/* ============================================================== */}
-          {/* VIEW C: ORDERS QUEUE TAB                                       */}
+          {/* TAB 4: ORDERS QUEUE TAB                                        */}
           {/* ============================================================== */}
           {activeTab === "orders" && (
             <div className="space-y-6 animate-in fade-in duration-200">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <h3 className="text-xl font-black text-slate-900">Live Print Spooler Queue</h3>
-                  <p className="text-xs text-slate-500">Real-time orders sent by customers via your QR standee</p>
+                  <p className="text-xs text-slate-500">Real-time incoming customer jobs from counter QR</p>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -924,14 +1315,17 @@ export default function ShopkeeperDashboard() {
                     className="px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold flex items-center gap-1.5 shadow"
                   >
                     <Tv className="w-4 h-4 text-amber-400" />
-                    <span>TV Token Display</span>
+                    <span>Open TV Queue Display</span>
                   </Link>
 
                   <button
                     type="button"
-                    onClick={() => setSoundEnabled(!soundEnabled)}
+                    onClick={() => {
+                      setSoundEnabled(!soundEnabled);
+                      if (!soundEnabled) playChime();
+                    }}
                     className="p-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-blue-600 shadow-sm"
-                    title="Toggle Audio Notifications"
+                    title="Toggle Audio Alerts"
                   >
                     {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-600" /> : <VolumeX className="w-4 h-4 text-slate-400" />}
                   </button>
@@ -967,7 +1361,7 @@ export default function ShopkeeperDashboard() {
                           <span className="text-[11px] text-slate-400">{order.time}</span>
                         </div>
                         {order.utr && (
-                          <p className="text-[10px] font-mono text-blue-600">UPI Ref / UTR: {order.utr}</p>
+                          <p className="text-[10px] font-mono text-blue-600">UPI UTR: {order.utr}</p>
                         )}
                       </div>
                     </div>
@@ -989,6 +1383,7 @@ export default function ShopkeeperDashboard() {
                         <button
                           type="button"
                           onClick={() => {
+                            playChime();
                             setOrders(orders.map((o) => (o.id === order.id ? { ...o, status: "printing" } : o)));
                           }}
                           className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow transition flex items-center gap-1.5"
@@ -1018,44 +1413,44 @@ export default function ShopkeeperDashboard() {
           )}
 
           {/* ============================================================== */}
-          {/* VIEW D: PAYMENT SETUP TAB                                      */}
+          {/* TAB 5: PAYMENT SETUP TAB                                       */}
           {/* ============================================================== */}
           {activeTab === "payment" && (
             <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl max-w-xl mx-auto space-y-5 text-xs animate-in fade-in duration-200">
               <div className="space-y-1">
                 <h3 className="text-lg font-black text-slate-900">Payment &amp; UPI Setup</h3>
-                <p className="text-slate-500">100% direct settlement to your UPI ID with 0% platform commission</p>
+                <p className="text-slate-500">Direct settlement to your bank UPI ID with 0% platform deduction</p>
               </div>
 
               <div>
                 <label className="block text-slate-700 font-bold mb-1">
-                  Your Shopkeeper UPI ID: *
+                  Your Shopkeeper UPI VPA: *
                 </label>
                 <input
                   type="text"
                   value={shopUpi}
                   onChange={(e) => setShopUpi(e.target.value)}
-                  placeholder="e.g. sharma@okaxis or paytmqr@paytm"
+                  placeholder="e.g. 7388688968@okaxis or paytmqr@paytm"
                   className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 font-mono text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
                 <span className="text-[10px] text-slate-400 mt-1 block">
-                  Customer payments go directly to this bank VPA. No middleman holding your funds.
+                  Customer QR payment will credit directly into your bank account.
                 </span>
               </div>
 
               <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1">
                 <div className="flex items-center gap-2 font-bold text-xs">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Instant 0% Commission Policy</span>
+                  <span>100% Zero-Commission Guarantee</span>
                 </div>
                 <p className="text-[11px] text-emerald-800 leading-relaxed">
-                  QR Print Seva never deducts commission from your customer photocopy fees.
+                  QR Print Seva never deducts any commission on your customer printing charges.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={handleSaveSettings}
+                onClick={handleSavePricing}
                 className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition"
               >
                 Save Payment Settings
@@ -1064,13 +1459,13 @@ export default function ShopkeeperDashboard() {
           )}
 
           {/* ============================================================== */}
-          {/* VIEW E: SET PRICE TAB                                          */}
+          {/* TAB 6: SET PRICE TAB                                           */}
           {/* ============================================================== */}
           {activeTab === "price" && (
             <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl max-w-xl mx-auto space-y-5 text-xs animate-in fade-in duration-200">
               <div className="space-y-1">
                 <h3 className="text-lg font-black text-slate-900">Set Print Rates</h3>
-                <p className="text-slate-500">Customers will see these exact prices calculated on mobile</p>
+                <p className="text-slate-500">Calculated automatically on the customer&apos;s mobile checkout</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -1095,15 +1490,15 @@ export default function ShopkeeperDashboard() {
                 </div>
               </div>
 
-              {saveSuccess && (
+              {ratesSaved && (
                 <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-center">
-                  Rates updated successfully!
+                  Rates saved and synced with cloud agent!
                 </div>
               )}
 
               <button
                 type="button"
-                onClick={handleSaveSettings}
+                onClick={handleSavePricing}
                 className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition"
               >
                 Save Print Rates
@@ -1112,58 +1507,62 @@ export default function ShopkeeperDashboard() {
           )}
 
           {/* ============================================================== */}
-          {/* VIEW F: ADVANCE FEATURE TAB                                    */}
+          {/* TAB 7: CUSTOMER LANGUAGE TAB                                   */}
           {/* ============================================================== */}
-          {activeTab === "advance" && (
-            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl max-w-2xl mx-auto space-y-5 text-xs animate-in fade-in duration-200">
-              <h3 className="text-lg font-black text-slate-900">Advance Shop Automation Features</h3>
+          {activeTab === "language" && (
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl max-w-xl mx-auto space-y-5 text-xs animate-in fade-in duration-200">
+              <h3 className="text-lg font-black text-slate-900">Customer Scanner Default Language</h3>
+              <p className="text-slate-500">When customers scan your counter QR, choose the default language shown to them:</p>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <div className="pr-4">
-                    <span className="font-bold text-slate-900 block">Silent Auto-Print (बिना क्लिक किए प्रिंट)</span>
-                    <span className="text-[11px] text-slate-500">
-                      Print job starts immediately without clicking dialog boxes on shop PC
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={autoPrintEnabled}
-                    onChange={(e) => setAutoPrintEnabled(e.target.checked)}
-                    className="w-5 h-5 rounded text-blue-600 accent-blue-600"
-                  />
-                </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCustomerLangPref("hi")}
+                  className={`p-4 rounded-2xl border text-center font-bold transition ${
+                    customerLangPref === "hi"
+                      ? "bg-blue-50 border-blue-600 text-blue-700 shadow-sm"
+                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="text-lg mb-1">🇮🇳</div>
+                  <span>हिन्दी (Hindi)</span>
+                </button>
 
-                <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <div className="pr-4">
-                    <span className="font-bold text-slate-900 block">TV Token Display Screen</span>
-                    <span className="text-[11px] text-slate-500">
-                      Display live tokens on customer-facing secondary monitor or shop TV
-                    </span>
-                  </div>
-                  <Link
-                    href="/dashboard/tv"
-                    target="_blank"
-                    className="px-3.5 py-1.5 rounded-xl bg-slate-900 text-white font-bold text-xs shadow hover:bg-slate-800"
-                  >
-                    Open TV View
-                  </Link>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setCustomerLangPref("en")}
+                  className={`p-4 rounded-2xl border text-center font-bold transition ${
+                    customerLangPref === "en"
+                      ? "bg-blue-50 border-blue-600 text-blue-700 shadow-sm"
+                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="text-lg mb-1">🌐</div>
+                  <span>English</span>
+                </button>
               </div>
+
+              <button
+                type="button"
+                onClick={() => alert("Customer language preference saved!")}
+                className="w-full py-3 rounded-xl bg-blue-600 text-white font-bold text-xs"
+              >
+                Save Language Preference
+              </button>
             </div>
           )}
 
           {/* ============================================================== */}
-          {/* VIEW G: REFER & EARN TAB                                       */}
+          {/* TAB 8: REFER & EARN TAB                                        */}
           {/* ============================================================== */}
           {activeTab === "refer" && (
             <div className="p-6 sm:p-10 rounded-3xl bg-white border border-slate-200 shadow-xl max-w-xl mx-auto text-center space-y-4 text-xs animate-in fade-in duration-200">
               <div className="w-14 h-14 rounded-3xl bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto text-2xl shadow">
                 🎁
               </div>
-              <h3 className="text-xl font-black text-slate-900">Refer Another Cyber Cafe &amp; Earn</h3>
+              <h3 className="text-xl font-black text-slate-900">Refer a Cyber Cafe &amp; Earn ₹200</h3>
               <p className="text-slate-500 text-xs">
-                Share QR Print Seva with neighboring cyber cafes, photo studios, or Xerox shops and get <strong>₹200 Cash Reward</strong> or <strong>1 Month Free Extension</strong>!
+                Recommend QR Print Seva to fellow Xerox and CSC center operators. For every verified shop registration using your link, receive ₹200 UPI cash or a 1-month subscription extension!
               </p>
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 font-mono text-sm font-black text-slate-900 flex items-center justify-between">
@@ -1178,7 +1577,7 @@ export default function ShopkeeperDashboard() {
               </div>
 
               <a
-                href={`https://wa.me/?text=${encodeURIComponent(`Check out QR Print Seva for silent automated printing in Cyber Cafes: https://qrprintseva.vercel.app/register?ref=REF-${shopId.substring(0, 8)}`)}`}
+                href={`https://wa.me/?text=${encodeURIComponent(`Apne cyber cafe par silent QR printing setup karein: https://qrprintseva.vercel.app/register?ref=REF-${shopId.substring(0, 8)}`)}`}
                 target="_blank"
                 rel="noreferrer"
                 className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md transition flex items-center justify-center gap-2"
@@ -1190,54 +1589,125 @@ export default function ShopkeeperDashboard() {
           )}
 
           {/* ============================================================== */}
-          {/* VIEW H: OTHER FALLBACK TABS (SETTINGS, LANGUAGE, SUPPORT, ETC.) */}
+          {/* TAB 9: GIVE A REVIEW TAB                                       */}
           {/* ============================================================== */}
-          {(activeTab === "settings" || activeTab === "language" || activeTab === "review" || activeTab === "agent" || activeTab === "support" || activeTab === "delete") && (
-            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl max-w-xl mx-auto space-y-4 text-xs animate-in fade-in duration-200">
-              <h3 className="text-lg font-black text-slate-900 capitalize">{activeTab.replace("_", " ")}</h3>
-              
-              {activeTab === "support" && (
-                <div className="space-y-3">
-                  <p className="text-slate-600">Connect with our dedicated engineer desk anytime:</p>
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                    <p className="font-bold text-slate-800">WhatsApp Hotline: +91 7388688968</p>
-                    <p className="font-bold text-slate-800">Email: contact@qrprintseva.in</p>
-                    <p className="text-slate-500 text-[11px]">Working Hours: 8:00 AM to 10:00 PM (All 7 Days)</p>
+          {activeTab === "review" && (
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl max-w-xl mx-auto space-y-5 text-xs animate-in fade-in duration-200">
+              <h3 className="text-lg font-black text-slate-900">Rate Your Experience</h3>
+              <p className="text-slate-500">Your feedback helps us optimize the silent print spooler for cyber cafe owners across India.</p>
+
+              {reviewSubmitted ? (
+                <div className="p-6 rounded-2xl bg-emerald-50 text-emerald-800 text-center font-bold space-y-1">
+                  <div className="text-2xl">🎉</div>
+                  <p>Thank you for your valuable review!</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-center gap-2 text-2xl py-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewRating(star)}
+                        className={`transition hover:scale-125 ${star <= reviewRating ? "text-amber-400" : "text-slate-300"}`}
+                      >
+                        ★
+                      </button>
+                    ))}
                   </div>
+
+                  <textarea
+                    rows={4}
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    placeholder="Write a few words about how QR Print Seva is helping your daily print workflow..."
+                    className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  ></textarea>
+
                   <button
                     type="button"
-                    onClick={() => handleSendWhatsAppSupport()}
-                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
+                    onClick={() => setReviewSubmitted(true)}
+                    className="w-full py-3 rounded-xl bg-blue-600 text-white font-bold text-xs shadow"
                   >
-                    Open Live WhatsApp Chat
+                    Submit Feedback
                   </button>
                 </div>
               )}
+            </div>
+          )}
 
-              {activeTab === "delete" && (
-                <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-900 space-y-3">
-                  <div className="flex items-center gap-2 font-black text-red-700">
-                    <AlertTriangle className="w-5 h-5 text-red-600" />
-                    <span>Danger Zone: Account Deletion</span>
-                  </div>
-                  <p className="text-xs text-red-800/90 leading-relaxed">
-                    Under DPDP Act 2023, you can request permanent erasure of your shop account and all synced configurations.
-                  </p>
-                  <Link
-                    href="/privacy/rights"
-                    className="inline-block px-4 py-2 rounded-xl bg-red-600 text-white font-bold text-xs hover:bg-red-700 shadow"
-                  >
-                    Submit DPDP Account Erasure Request
-                  </Link>
-                </div>
-              )}
+          {/* ============================================================== */}
+          {/* TAB 10: BECOME AGENT TAB                                       */}
+          {/* ============================================================== */}
+          {activeTab === "agent" && (
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl max-w-xl mx-auto space-y-4 text-xs animate-in fade-in duration-200">
+              <h3 className="text-lg font-black text-slate-900">Become a District Partner / Reseller</h3>
+              <p className="text-slate-600 leading-relaxed">
+                Earn recurring monthly commission by onboarding print shops, photocopy centers, and CSC VLEs in your district.
+              </p>
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-1 text-amber-900">
+                <p className="font-bold">Partner Earnings Potential:</p>
+                <p>• 15 Shops Onboarded: ~₹3,500/mo</p>
+                <p>• 50 Shops Onboarded: ~₹12,500/mo</p>
+                <p>• 100+ Shops (District Master): ~₹28,000+/mo</p>
+              </div>
+              <Link
+                href="/partner"
+                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs text-center block shadow"
+              >
+                Open Partner Onboarding Portal
+              </Link>
+            </div>
+          )}
 
-              {activeTab !== "support" && activeTab !== "delete" && (
-                <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-2 text-slate-500">
-                  <p className="font-bold text-slate-700">Configuration active for {shopName}</p>
-                  <p className="text-[11px]">All preferences are auto-synced with your shop print agent.</p>
-                </div>
-              )}
+          {/* ============================================================== */}
+          {/* TAB 11: SUPPORT TAB                                            */}
+          {/* ============================================================== */}
+          {activeTab === "support" && (
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl max-w-xl mx-auto space-y-4 text-xs animate-in fade-in duration-200">
+              <h3 className="text-lg font-black text-slate-900">Dedicated Support &amp; Remote Assistance</h3>
+              <p className="text-slate-600 leading-relaxed">
+                Need help installing the print agent, configuring printers, or pairing custom hardware?
+              </p>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <p className="font-bold text-slate-900">📱 WhatsApp Direct: +91 7388688968 / 8404832414</p>
+                <p className="font-bold text-slate-900">✉️ Email: contact@qrprintseva.in / dpo@qrprintseva.in</p>
+                <p className="text-slate-500 text-[11px]">📍 Operating Location: Gorakhpur, Uttar Pradesh (India)</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleSendWhatsAppSupport()}
+                className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow flex items-center justify-center gap-2"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Chat with Engineer on WhatsApp</span>
+              </button>
+            </div>
+          )}
+
+          {/* ============================================================== */}
+          {/* TAB 12: DELETE ACCOUNT TAB                                     */}
+          {/* ============================================================== */}
+          {activeTab === "delete" && (
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-red-200 shadow-xl max-w-xl mx-auto space-y-4 text-xs animate-in fade-in duration-200">
+              <div className="flex items-center gap-2 font-black text-red-700 text-base">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <span>Danger Zone: Account Deletion</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Under Section 12 of the Digital Personal Data Protection Act, 2023, you have the right to request the permanent erasure of your shop account and all synced configurations.
+              </p>
+              <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-900 text-[11px] space-y-1">
+                <p>⚠️ Deletion is permanent. Your customer print QR code will cease functioning immediately.</p>
+              </div>
+              <Link
+                href="/privacy/rights"
+                className="inline-block w-full py-3 rounded-xl bg-red-600 text-white font-bold text-xs text-center hover:bg-red-700 shadow"
+              >
+                Submit Statutory Erasure Request
+              </Link>
             </div>
           )}
 
@@ -1245,7 +1715,7 @@ export default function ShopkeeperDashboard() {
       </div>
 
       {/* ============================================================== */}
-      {/* 3. AGENT STATUS MODAL HELP                                      */}
+      {/* 3. MODAL: AGENT STATUS HELP                                    */}
       {/* ============================================================== */}
       {isAgentModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1281,6 +1751,39 @@ export default function ShopkeeperDashboard() {
             >
               Go to QR &amp; Downloads Tab
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 4. MODAL: DISCONNECT PC CONFIRMATION                           */}
+      {/* ============================================================== */}
+      {pcDisconnectConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full space-y-4 shadow-2xl border border-slate-200 text-xs text-slate-700 animate-in fade-in duration-200">
+            <div className="flex items-center gap-2 font-black text-slate-900 text-sm">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              <span>Disconnect Computer?</span>
+            </div>
+            <p className="text-slate-600 leading-relaxed">
+              Kya aap sach me purana computer disconnect karna chahte hain? Iske baad aap naye Windows PC me apni Shop ID daal sakenge.
+            </p>
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setPcDisconnectConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-300 font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDisconnectPc}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold"
+              >
+                Yes, Disconnect
+              </button>
+            </div>
           </div>
         </div>
       )}

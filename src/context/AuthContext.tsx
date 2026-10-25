@@ -15,6 +15,11 @@ export interface ShopUser {
   bwRate: number;
   colorRate: number;
   printerName: string;
+  printerModel?: string;
+  bwPrinter?: string;
+  colorPrinter?: string;
+  connectedPc?: string | null;
+  customLogo?: string;
   plan: "trial" | "monthly" | "yearly" | "lifetime";
   createdAt: string;
 }
@@ -38,18 +43,22 @@ interface AuthContextType {
 }
 
 const DEFAULT_SHOP: ShopUser = {
-  id: "SHARMA-77",
-  shopName: "Sharma Cyber Cafe & CSC Center",
-  ownerName: "Ramesh Sharma",
-  phone: "+91 98765 43210",
-  email: "sharma@cybercafe.in",
-  slug: "sharma-cyber-cafe",
-  address: "Shop No. 12, Main Market, Sirsa (Haryana)",
-  upiId: "sharmacafe@okhdfcbank",
+  id: "DEMO_FE8F53D1",
+  shopName: "Dk mobile (Demo)",
+  ownerName: "Dhananjay Vishwakarma",
+  phone: "7388688968",
+  email: "iamdhananjay68@gmail.com",
+  slug: "dk-mobile-demo",
+  address: "jangle ayodhya prasad, gorakhpur",
+  upiId: "7388688968@okaxis",
   bwRate: 3,
   colorRate: 10,
   printerName: "HP LaserJet 1020",
-  plan: "yearly",
+  printerModel: "Epson L1350",
+  bwPrinter: "System Default Printer (auto)",
+  colorPrinter: "System Default Printer (auto)",
+  connectedPc: null,
+  plan: "trial",
   createdAt: "2026-01-15",
 };
 
