@@ -545,38 +545,59 @@ export default function HomePage() {
       </section>
 
       {/* 5. ABOUT US SECTION (#about) */}
-      <section id="about" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 scroll-mt-24">
-        <div className="glass-card rounded-3xl p-8 sm:p-12 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white shadow-xl relative overflow-hidden">
-          <div className="max-w-3xl space-y-5">
+      <section id="about" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 scroll-mt-24">
+        <div className="glass-card rounded-3xl p-6 sm:p-10 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white shadow-xl relative overflow-hidden">
+          <div className="max-w-3xl space-y-4">
             <span className="text-xs font-black text-blue-300 uppercase tracking-widest bg-blue-900/60 px-3 py-1 rounded-full border border-blue-700/60 inline-block">
-              About QR Print Seva
+              {language === "hi" ? "हमारे बारे में" : "About QR Print Seva"}
             </span>
 
-            <h2 className="text-2xl sm:text-4xl font-black tracking-tight leading-snug">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight leading-snug">
               {language === "hi"
-                ? "भारत के 5,00,000+ साइबर कैफ़े और जन सेवा केंद्रों को डिजिटल बनाने का मिशन"
-                : "Empowering 500,000+ Cyber Cafes and CSC Centers Across India"}
+                ? "व्हाट्सएप की झंझट व पेनड्राइव के वायरस खत्म करने का मिशन"
+                : "Ending WhatsApp Clutter & Pendrive Viruses for 500,000+ Print Shops"}
             </h2>
 
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
               {language === "hi"
-                ? "हर साइबर कैफ़े और ज़ेरॉक्स की दुकान पर रोज़ाना दर्जनों ग्राहक आते हैं जो कहते हैं: 'भैया व्हाट्सएप पर भेज रहा हूँ प्रिंट कर दो।' इससे दुकानदार का फोन हैंग होता है, वायरस का ख़तरा रहता है और समय बर्बाद होता है। हमने QR Print Seva को इसलिए बनाया ताकि हर दुकानदार 100% ऑटोमेशन के साथ बिना सिरदर्द के काम कर सके और अपनी कमाई बढ़ा सके।"
-                : "Every day, thousands of Indian photocopy and cyber cafe owners waste hours downloading WhatsApp documents from stranger customers, risking computer malware and counter chaos. QR Print Seva was engineered from the ground up to automate this workflow into a single 10-second scan-and-print experience."}
+                ? "दुकानदार का समय बचाना, पर्सनल व्हाट्सएप पर फाइलों की भीड़ रोकना और हर एक प्रिंट का 100% पैसा बिना किसी कटौती के सीधे आपके बैंक खाते में पहुंचाना हमारा मुख्य उद्देश्य है।"
+                : "Our singular purpose is to save cyber cafe owners 15+ minutes on every customer job, protect shop PCs from pendrive malware, and route 100% of customer print money directly into the owner's bank account."}
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-800 text-xs">
-              <div className="space-y-1">
-                <span className="font-black text-amber-400 block text-sm">100% Indian SaaS</span>
-                <span className="text-slate-400 text-[11px]">गोरखपुर (उत्तर प्रदेश) से पूरे भारत के लिए निर्मित।</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-slate-800 text-xs">
+              <div className="space-y-0.5">
+                <span className="font-black text-amber-400 block text-sm">
+                  {language === "hi" ? "100% भारतीय SaaS" : "100% Made in India"}
+                </span>
+                <span className="text-slate-400 text-[11px]">
+                  {language === "hi" ? "गोरखपुर (उत्तर प्रदेश) से निर्मित।" : "Engineered from Gorakhpur, UP."}
+                </span>
               </div>
-              <div className="space-y-1">
-                <span className="font-black text-emerald-400 block text-sm">Direct Bank Transfer</span>
-                <span className="text-slate-400 text-[11px]">कोई वॉलेट या गेटवे कटौती नहीं। सीधा UPI।</span>
+              <div className="space-y-0.5">
+                <span className="font-black text-emerald-400 block text-sm">
+                  {language === "hi" ? "ज़ीरो-स्टोरेज प्राइवेसी" : "Zero-Storage Auto-Purge"}
+                </span>
+                <span className="text-slate-400 text-[11px]">
+                  {language === "hi" ? "प्रिंट होते ही फाइल खुद डिलीट।" : "Files purged instantly after print."}
+                </span>
               </div>
-              <div className="space-y-1">
-                <span className="font-black text-blue-400 block text-sm">24/7 WhatsApp Support</span>
-                <span className="text-slate-400 text-[11px]">प्रिंटर सेटअप में हमारे इंजीनियर से सीधा रिमोट सपोर्ट।</span>
+              <div className="space-y-0.5">
+                <span className="font-black text-blue-400 block text-sm">
+                  {language === "hi" ? "0% प्लेटफॉर्म फीस" : "0% Platform Commission"}
+                </span>
+                <span className="text-slate-400 text-[11px]">
+                  {language === "hi" ? "100% सीधा बैंक ट्रांसफर।" : "100% direct bank UPI transfer."}
+                </span>
               </div>
+            </div>
+
+            <div className="pt-2">
+              <Link
+                href="/about"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-400 hover:text-sky-300 hover:underline"
+              >
+                <span>{language === "hi" ? "विस्तृत जानकारी व गारंटी पढ़ें ›" : "Read Detailed Mission & Guarantees ›"}</span>
+              </Link>
             </div>
           </div>
         </div>

@@ -166,9 +166,9 @@ export const Footer: React.FC = () => {
                   </a>
                 </li>
                 <li>
-                  <a href="#about" className="hover:text-blue-400 transition-colors">
+                  <Link href="/about" className="hover:text-blue-400 transition-colors">
                     {language === "hi" ? "हमारे बारे में" : "About Us"}
-                  </a>
+                  </Link>
                 </li>
                 <li>
                   <a href="#contact" className="hover:text-blue-400 transition-colors">
@@ -345,7 +345,11 @@ export const Footer: React.FC = () => {
             <p>
               {language === "hi"
                 ? `© ${new Date().getFullYear()} क्यूआर प्रिंट सेवा। सर्वाधिकार सुरक्षित।`
-                : `© ${new Date().getFullYear()} QR Print Seva. All Rights Reserved.`}
+                : `© ${new Date().getFullYear()} QR Print Seva. All Rights Reserved.`}{" "}
+              •{" "}
+              <Link href="/admin" className="text-slate-600 hover:text-amber-400 transition">
+                {language === "hi" ? "संस्थापक पोर्टल (Founder)" : "Founder Master"}
+              </Link>
             </p>
             <p className="flex items-center gap-1 text-[11px] text-slate-400">
               {language === "hi"

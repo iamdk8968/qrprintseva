@@ -108,9 +108,9 @@ export const Navbar: React.FC = () => {
               </a>
 
               {/* About */}
-              <a href="#about" className="hover:text-blue-600 transition-colors">
+              <Link href="/about" className="hover:text-blue-600 transition-colors">
                 {language === "hi" ? "हमारे बारे में" : "About"}
-              </a>
+              </Link>
 
               {/* Contact Us */}
               <a href="#contact" className="hover:text-blue-600 transition-colors">
@@ -210,13 +210,13 @@ export const Navbar: React.FC = () => {
               {language === "hi" ? "फीचर्स" : "Features"}
             </a>
 
-            <a
-              href="#about"
+            <Link
+              href="/about"
               onClick={() => setMobileMenuOpen(false)}
               className="block p-2 rounded-lg hover:bg-slate-50 text-slate-800"
             >
               {language === "hi" ? "हमारे बारे में" : "About"}
-            </a>
+            </Link>
 
             <a
               href="#contact"
