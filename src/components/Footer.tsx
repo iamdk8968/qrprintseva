@@ -172,20 +172,28 @@ export const Footer: React.FC = () => {
                   </a>
                 </li>
                 <li className="pt-2 border-t border-slate-800">
-                  <button
-                    onClick={() => setActiveModal("terms")}
-                    className="hover:text-blue-400 transition-colors text-left"
+                  <Link
+                    href="/terms"
+                    className="hover:text-blue-400 transition-colors block text-left"
                   >
-                    {language === "hi" ? "नियम व शर्तें" : "Terms & Conditions"}
-                  </button>
+                    {language === "hi" ? "नियम व शर्तें (Terms)" : "Terms & Conditions"}
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={() => setActiveModal("privacy")}
-                    className="hover:text-blue-400 transition-colors text-left"
+                  <Link
+                    href="/privacy"
+                    className="hover:text-blue-400 transition-colors block text-left"
                   >
-                    {language === "hi" ? "ज़ीरो-स्टोरेज गोपनीयता नीति" : "Zero-Storage Privacy Policy"}
-                  </button>
+                    {language === "hi" ? "गोपनीयता नीति (DPDP Privacy)" : "Privacy Notice (DPDP Act)"}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/privacy/rights"
+                    className="hover:text-blue-400 transition-colors block text-left text-blue-400 font-bold"
+                  >
+                    {language === "hi" ? "डेटा अधिकार अनुरोध फॉर्म" : "Data Principal Rights Form"}
+                  </Link>
                 </li>
                 <li>
                   <button
@@ -334,6 +342,41 @@ export const Footer: React.FC = () => {
 
             </div>
 
+          </div>
+
+          {/* Statutory Grievance Redressal Banner (Section 13, DPDP Act 2023) */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-300 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="font-extrabold text-white text-xs uppercase tracking-wider">
+                  {language === "hi"
+                    ? "डेटा संरक्षण व शिकायत निवारण अधिकारी (DPDP Act, 2023)"
+                    : "Data Protection & Grievance Redressal Officer (DPDP Act, 2023)"}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                <strong>Officer:</strong> Mr. Dhananjay Vishwakarma • <strong>Email:</strong>{" "}
+                <a href="mailto:dpo@qrprintseva.in" className="text-blue-400 underline font-mono">
+                  dpo@qrprintseva.in
+                </a>{" "}
+                • <strong>Location:</strong> Gorakhpur (UP), India • <strong>SLA:</strong> 24h acknowledgement / 30d resolution
+              </p>
+            </div>
+            <div className="flex items-center gap-2.5 flex-shrink-0">
+              <Link
+                href="/privacy/rights"
+                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition"
+              >
+                {language === "hi" ? "अधिकार अनुरोध दर्ज करें" : "Exercise Data Rights"}
+              </Link>
+              <Link
+                href="/privacy"
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition border border-slate-700"
+              >
+                {language === "hi" ? "गोपनीयता नीति" : "Privacy Notice"}
+              </Link>
+            </div>
           </div>
 
           {/* Bottom Copyright Strip */}

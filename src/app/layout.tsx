@@ -5,6 +5,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { GlobalPromoModal } from "@/components/GlobalPromoModal";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 
 export const metadata: Metadata = {
   title: "QR Print Seva | Self-Service Cloud Printing for Cyber Cafes & CSC (qrprintseva.in)",
@@ -40,6 +41,7 @@ export default function RootLayout({
         <LanguageProvider>
           <AuthProvider>
             <GlobalPromoModal />
+            <CookieConsentBanner />
             <Navbar />
             <main className="flex-grow">{children}</main>
             <Footer />

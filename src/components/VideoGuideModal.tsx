@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, Play, Youtube, CheckCircle2, ArrowRight } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, Play, Youtube, CheckCircle2, ShieldAlert } from "lucide-react";
+import { getCookiePreferences } from "./CookieConsentBanner";
 
 interface VideoGuideModalProps {
   isOpen: boolean;
@@ -12,9 +13,26 @@ interface VideoGuideModalProps {
 export const VideoGuideModal: React.FC<VideoGuideModalProps> = ({
   isOpen,
   onClose,
-  youtubeVideoId = "dQw4w9WgXcQ", // Default video placeholder (can be customized)
+  youtubeVideoId = "dQw4w9WgXcQ",
 }) => {
-  const [activeVideoId, setActiveVideoId] = useState(youtubeVideoId);
+  const [activeVideoId] = useState(youtubeVideoId);
+  const [hasMediaConsent, setHasMediaConsent] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      const prefs = getCookiePreferences();
+      // If user explicitly allowed marketing/embeds or accepted all
+      if (prefs && prefs.marketing) {
+        setHasMediaConsent(true);
+      } else {
+        setHasMediaConsent(false);
+      }
+    }
+  }, [isOpen]);
+
+  const handleGrantConsentAndPlay = () => {
+    setHasMediaConsent(true);
+  };
 
   if (!isOpen) return null;
 
@@ -46,15 +64,39 @@ export const VideoGuideModal: React.FC<VideoGuideModalProps> = ({
           </button>
         </div>
 
-        {/* Video Player Box (16:9 Aspect Ratio) */}
+        {/* Video Player Box with DPDP Consent Gate */}
         <div className="relative w-full pb-[56.25%] bg-black">
-          <iframe
-            src={`https://www.youtube.com/embed/${activeVideoId}?autoplay=1&rel=0`}
-            title="QR Print Seva Setup Guide"
-            className="absolute inset-0 w-full h-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          ></iframe>
+          {hasMediaConsent ? (
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${activeVideoId}?autoplay=1&rel=0`}
+              title="QR Print Seva Setup Guide"
+              className="absolute inset-0 w-full h-full border-0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            ></iframe>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-950 text-white space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <div className="max-w-md space-y-1">
+                <h4 className="font-extrabold text-sm sm:text-base text-white">
+                  Third-Party Media Embed (YouTube) Gated
+                </h4>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Under DPDP Act 2023, loading external media players can set third-party cookies by Google/YouTube. Click below to give one-time consent to load the video tutorial.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleGrantConsentAndPlay}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white font-bold text-xs shadow-lg shadow-rose-600/30 flex items-center gap-2 transition active:scale-95"
+              >
+                <Play className="w-3.5 h-3.5 fill-white" />
+                <span>Consent &amp; Watch Video</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Bottom Steps Summary */}

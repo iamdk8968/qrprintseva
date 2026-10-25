@@ -36,6 +36,9 @@ export default function RegisterShopPage() {
   const [colorRate, setColorRate] = useState(10);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  // DPDP Act 2023 Consent States (Unticked by default)
+  const [consentTerms, setConsentTerms] = useState(false);
+  const [consentMarketing, setConsentMarketing] = useState(false);
 
   // Generate live slug from shop name
   const slug = shopName
@@ -47,6 +50,16 @@ export default function RegisterShopPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
+
+    if (!consentTerms) {
+      setErrorMsg(
+        language === "hi"
+          ? "कृपया अनिवार्य सेवा की शर्तें व गोपनीयता सूचना की सहमति दें (DPDP Act, 2023)।"
+          : "Please agree to the mandatory Terms of Service & Privacy Notice consent under DPDP Act, 2023."
+      );
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -64,6 +77,31 @@ export default function RegisterShopPage() {
       });
 
       if (res.success) {
+        // Record affirmative consent in DPDP audit store
+        fetch("/api/consent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            principalId: phone,
+            principalType: "shopkeeper",
+            noticeVersion: "v1.0-dpdp-2023",
+            purposes: [
+              {
+                purposeId: "account_terms_privacy",
+                description: "Shopkeeper account management and software licensing under DPDP Act",
+                granted: true,
+                mandatory: true,
+              },
+              {
+                purposeId: "promotional_alerts",
+                description: "Optional WhatsApp/SMS updates on discounts and features",
+                granted: consentMarketing,
+                mandatory: false,
+              },
+            ],
+          }),
+        }).catch(() => {});
+
         router.push("/dashboard");
       } else {
         setErrorMsg(res.error || "रजिस्ट्रेशन विफल रहा। पुनः प्रयास करें।");
@@ -270,6 +308,48 @@ export default function RegisterShopPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-slate-900 bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
+                </div>
+              </div>
+
+              {/* DPDP Act 2023 Statutory Consent Checkboxes (Unticked by default) */}
+              <div className="p-3.5 rounded-2xl bg-blue-50/60 border border-blue-200/80 space-y-2.5 text-xs">
+                {/* Mandatory Checkbox 1: Terms & Privacy */}
+                <div className="flex items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    id="consentTerms"
+                    checked={consentTerms}
+                    onChange={(e) => setConsentTerms(e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600 accent-blue-600 mt-0.5 flex-shrink-0 cursor-pointer"
+                  />
+                  <label htmlFor="consentTerms" className="text-slate-700 leading-snug cursor-pointer">
+                    <span className="text-red-500 font-bold">* </span>
+                    {language === "hi" ? (
+                      <>
+                        मैं <Link href="/terms" target="_blank" className="text-blue-600 underline font-bold">सेवा की शर्तें</Link> और <Link href="/privacy" target="_blank" className="text-blue-600 underline font-bold">गोपनीयता सूचना</Link> से सहमत हूँ, और DPDP एक्ट 2023 के तहत अकाउंट प्रबंधन व प्रिंटिंग सेवा के लिए अपने डेटा के निष्पादन की स्पष्ट सहमति देता हूँ।
+                      </>
+                    ) : (
+                      <>
+                        I have read and agree to the <Link href="/terms" target="_blank" className="text-blue-600 underline font-bold">Terms of Service</Link> &amp; <Link href="/privacy" target="_blank" className="text-blue-600 underline font-bold">Privacy Notice</Link>, and give affirmative consent for processing my shopkeeper data under DPDP Act 2023.
+                      </>
+                    )}
+                  </label>
+                </div>
+
+                {/* Optional Checkbox 2: Marketing & Offers */}
+                <div className="flex items-start gap-2.5 pt-1 border-t border-blue-100">
+                  <input
+                    type="checkbox"
+                    id="consentMarketing"
+                    checked={consentMarketing}
+                    onChange={(e) => setConsentMarketing(e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600 accent-blue-600 mt-0.5 flex-shrink-0 cursor-pointer"
+                  />
+                  <label htmlFor="consentMarketing" className="text-slate-600 text-[11px] leading-snug cursor-pointer">
+                    {language === "hi"
+                      ? "(वैकल्पिक) मुझे WhatsApp / SMS पर नए फीचर्स, डिस्काउंट ऑफर और जरूरी अपडेट प्राप्त करने की सहमति है।"
+                      : "(Optional) I consent to receive occasional service updates, new feature alerts, and festive discount coupons via WhatsApp / SMS."}
+                  </label>
                 </div>
               </div>
 

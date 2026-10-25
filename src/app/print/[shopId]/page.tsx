@@ -82,6 +82,10 @@ export default function CustomerPrintPage({
   const activePages = file ? file.pages : 1;
   const totalAmount = pricePerPage * activePages * copies;
 
+  // DPDP Act 2023 Statutory Consent (Unticked by default)
+  const [customerConsent, setCustomerConsent] = useState(false);
+  const [consentError, setConsentError] = useState(false);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selected = e.target.files[0];
@@ -143,6 +147,31 @@ export default function CustomerPrintPage({
 
   const handleStartOrder = () => {
     if (!file) return;
+    if (!customerConsent) {
+      setConsentError(true);
+      return;
+    }
+    setConsentError(false);
+
+    // Record customer affirmative ephemeral consent under DPDP Act Section 6
+    fetch("/api/consent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        principalId: `cust-${Date.now()}`,
+        principalType: "customer",
+        noticeVersion: "v1.0-dpdp-2023",
+        purposes: [
+          {
+            purposeId: "print_ephemeral_transmission",
+            description: "Ephemeral file transmission and silent queue printing at designated shop",
+            granted: true,
+            mandatory: true,
+          },
+        ],
+      }),
+    }).catch(() => {});
+
     if (paymentMethod === "upi") {
       setIsUpiModalOpen(true);
     } else {
@@ -511,6 +540,45 @@ export default function CustomerPrintPage({
               <div className="text-right">
                 <span className="text-2xl font-black text-emerald-400">₹{totalAmount}</span>
               </div>
+            </div>
+
+            {/* DPDP Act 2023 Statutory Consent Checkbox (Unticked by default) */}
+            <div className={`p-3.5 rounded-2xl border transition ${
+              consentError
+                ? "bg-red-50 border-red-300 ring-2 ring-red-400/20"
+                : "bg-blue-50/60 border-blue-200"
+            }`}>
+              <div className="flex items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  id="customerConsent"
+                  checked={customerConsent}
+                  onChange={(e) => {
+                    setCustomerConsent(e.target.checked);
+                    if (e.target.checked) setConsentError(false);
+                  }}
+                  className="w-4 h-4 rounded text-blue-600 accent-blue-600 mt-0.5 flex-shrink-0 cursor-pointer"
+                />
+                <label htmlFor="customerConsent" className="text-xs text-slate-700 leading-snug cursor-pointer select-none">
+                  <span className="text-red-500 font-bold">* </span>
+                  {language === "hi" ? (
+                    <>
+                      मैं इस दुकान के प्रिंटर पर दस्तावेज़ निकालने के लिए अपनी फाइल के अस्थायी (Ephemeral) प्रसारण की सहमति देता हूँ। मुझे ज्ञात है कि प्रिंट होते ही मेरी फाइल सर्वर से स्वतः मिटा दी जाएगी (<Link href="/privacy" target="_blank" className="text-blue-600 font-bold underline">गोपनीयता नीति</Link>)।
+                    </>
+                  ) : (
+                    <>
+                      I give affirmative consent to the ephemeral processing &amp; transmission of my document solely for printing at this shop. I acknowledge my file will be purged immediately upon completion as per the <Link href="/privacy" target="_blank" className="text-blue-600 font-bold underline">Privacy Notice</Link>.
+                    </>
+                  )}
+                </label>
+              </div>
+              {consentError && (
+                <p className="text-[11px] text-red-600 font-bold mt-1.5 pl-6">
+                  {language === "hi"
+                    ? "कृपया प्रिंट करने से पहले डेटा सहमति चेकबॉक्स को चुनें।"
+                    : "Please check the consent box to proceed with printing."}
+                </p>
+              )}
             </div>
 
             {/* Order Submit Button */}

@@ -29,6 +29,8 @@ export default function PartnerProgramPage() {
 
   // Form State
   const [submitted, setSubmitted] = useState(false);
+  const [consentTerms, setConsentTerms] = useState(false);
+  const [consentError, setConsentError] = useState(false);
   const [partnerForm, setPartnerForm] = useState({
     name: "",
     phone: "",
@@ -39,6 +41,31 @@ export default function PartnerProgramPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!consentTerms) {
+      setConsentError(true);
+      return;
+    }
+    setConsentError(false);
+
+    // Record partner affirmative consent in DPDP store
+    fetch("/api/consent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        principalId: partnerForm.phone || partnerForm.name,
+        principalType: "partner",
+        noticeVersion: "v1.0-dpdp-2023",
+        purposes: [
+          {
+            purposeId: "partner_application_vetting",
+            description: "Partner / distributor onboarding, background verification and territory evaluation",
+            granted: true,
+            mandatory: true,
+          },
+        ],
+      }),
+    }).catch(() => {});
+
     setSubmitted(true);
   };
 
@@ -326,6 +353,43 @@ export default function PartnerProgramPage() {
                     <option value="100+">100+ Shops (District Master)</option>
                   </select>
                 </div>
+              </div>
+
+              {/* DPDP Act 2023 Consent Checkbox (Unticked by default) */}
+              <div className={`p-3.5 rounded-2xl border transition ${
+                consentError ? "bg-red-50 border-red-300 ring-2 ring-red-400/20" : "bg-blue-50/60 border-blue-200"
+              }`}>
+                <div className="flex items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    id="partnerConsent"
+                    checked={consentTerms}
+                    onChange={(e) => {
+                      setConsentTerms(e.target.checked);
+                      if (e.target.checked) setConsentError(false);
+                    }}
+                    className="w-4 h-4 rounded text-blue-600 accent-blue-600 mt-0.5 flex-shrink-0 cursor-pointer"
+                  />
+                  <label htmlFor="partnerConsent" className="text-xs text-slate-700 leading-snug cursor-pointer select-none">
+                    <span className="text-red-500 font-bold">* </span>
+                    {language === "hi" ? (
+                      <>
+                        मैं डिस्ट्रीब्यूटर आवेदन मूल्यांकन के लिए अपनी जानकारी प्रदान करने की सहमति देता हूँ और <Link href="/privacy" target="_blank" className="text-blue-600 font-bold underline">गोपनीयता नीति</Link> व <Link href="/terms" target="_blank" className="text-blue-600 font-bold underline">शर्तों</Link> को स्वीकार करता हूँ।
+                      </>
+                    ) : (
+                      <>
+                        I consent to QR Print Seva processing my contact and network details for distributor vetting under the <Link href="/privacy" target="_blank" className="text-blue-600 font-bold underline">Privacy Notice</Link> and <Link href="/terms" target="_blank" className="text-blue-600 font-bold underline">Terms</Link>.
+                      </>
+                    )}
+                  </label>
+                </div>
+                {consentError && (
+                  <p className="text-[11px] text-red-600 font-bold mt-1.5 pl-6">
+                    {language === "hi"
+                      ? "कृपया आवेदन करने से पहले सहमति चेकबॉक्स को चुनें।"
+                      : "Please check the consent box to submit your application."}
+                  </p>
+                )}
               </div>
 
               <button
