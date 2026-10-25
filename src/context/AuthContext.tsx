@@ -24,6 +24,14 @@ interface AuthContextType {
   isLoggedIn: boolean;
   login: (identifier: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   register: (data: Omit<ShopUser, "id" | "createdAt">) => Promise<{ success: boolean; error?: string }>;
+  registerDemoAccount: (data: {
+    ownerName: string;
+    phone: string;
+    shopName: string;
+    address: string;
+    email: string;
+    printerName?: string;
+  }) => Promise<{ shopId: string; password: string; shop: ShopUser }>;
   logout: () => void;
   updateProfile: (updates: Partial<ShopUser>) => void;
   quickDemoLogin: () => void;
@@ -71,19 +79,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (identifier: string, pass: string) => {
     // Simulated credential check
-    if (!identifier.trim() || !pass.trim()) {
-      return { success: false, error: "कृपया मोबाइल नंबर/ईमेल और पासवर्ड भरें।" };
+    const cleanId = identifier.trim().toLowerCase();
+    const cleanPass = pass.trim();
+
+    if (!cleanId || !cleanPass) {
+      return { success: false, error: "कृपया शॉप आईडी / मोबाइल नंबर और पासवर्ड भरें।" };
     }
 
     // Check saved users list or default shop
-    let matchedShop = DEFAULT_SHOP;
+    let matchedShop: ShopUser | null = null;
     if (typeof window !== "undefined") {
       const savedShops = localStorage.getItem("smartprint_registered_shops");
       if (savedShops) {
-        const list: ShopUser[] = JSON.parse(savedShops);
-        const found = list.find((s) => s.phone === identifier || s.email === identifier);
-        if (found) matchedShop = found;
+        try {
+          const list: ShopUser[] = JSON.parse(savedShops);
+          const found = list.find(
+            (s) =>
+              s.id.toLowerCase() === cleanId ||
+              s.phone.replace(/\D/g, "") === cleanId.replace(/\D/g, "") ||
+              s.email?.toLowerCase() === cleanId ||
+              s.slug.toLowerCase() === cleanId
+          );
+          if (found) matchedShop = found;
+        } catch {}
       }
+    }
+
+    if (!matchedShop) {
+      if (
+        cleanId === DEFAULT_SHOP.id.toLowerCase() ||
+        cleanId.includes("sharma") ||
+        cleanId === "7388688968"
+      ) {
+        matchedShop = DEFAULT_SHOP;
+      }
+    }
+
+    if (!matchedShop) {
+      return { success: false, error: "यह शॉप आईडी या मोबाइल नंबर नहीं मिला। कृपया फ्री डेमो बनाएं।" };
     }
 
     setUser(matchedShop);
@@ -91,6 +124,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem("smartprint_shop_user", JSON.stringify(matchedShop));
     }
     return { success: true };
+  };
+
+  const registerDemoAccount = async (data: {
+    ownerName: string;
+    phone: string;
+    shopName: string;
+    address: string;
+    email: string;
+    printerName?: string;
+  }) => {
+    const hex = Math.random().toString(16).substring(2, 10).toUpperCase();
+    const demoShopId = `DEMO_${hex}`;
+    const cleanPhone = data.phone.replace(/\D/g, "");
+    const baseSlug =
+      data.shopName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "demo-shop";
+    const uniqueSlug = `${baseSlug}-${Math.floor(100 + Math.random() * 900)}`;
+
+    const newShop: ShopUser = {
+      id: demoShopId,
+      shopName: data.shopName,
+      ownerName: data.ownerName,
+      phone: cleanPhone,
+      email: data.email,
+      slug: uniqueSlug,
+      address: data.address,
+      upiId: `${cleanPhone}@upi`,
+      bwRate: 3,
+      colorRate: 10,
+      printerName: data.printerName || "System Default Printer (Auto-selected)",
+      plan: "trial",
+      createdAt: new Date().toISOString(),
+    };
+
+    setUser(newShop);
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("smartprint_shop_user", JSON.stringify(newShop));
+      const existing = localStorage.getItem("smartprint_registered_shops");
+      const list: ShopUser[] = existing ? JSON.parse(existing) : [DEFAULT_SHOP];
+      list.unshift(newShop);
+      localStorage.setItem("smartprint_registered_shops", JSON.stringify(list));
+    }
+
+    return {
+      shopId: demoShopId,
+      password: cleanPhone,
+      shop: newShop,
+    };
   };
 
   const register = async (data: Omit<ShopUser, "id" | "createdAt">) => {
@@ -150,6 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoggedIn: !!user,
         login,
         register,
+        registerDemoAccount,
         logout,
         updateProfile,
         quickDemoLogin,

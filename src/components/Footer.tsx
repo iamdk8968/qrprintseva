@@ -1,148 +1,355 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
-import { Printer, Heart, Shield, Phone, Mail, MapPin } from "lucide-react";
+import {
+  Printer,
+  Shield,
+  Phone,
+  Mail,
+  MapPin,
+  ExternalLink,
+  Users,
+  FileText,
+  AlertCircle,
+  HelpCircle,
+  MessageCircle,
+} from "lucide-react";
 
 export const Footer: React.FC = () => {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
+  const [activeModal, setActiveModal] = useState<"terms" | "privacy" | "refund" | null>(null);
 
   return (
-    <footer className="bg-slate-900 text-slate-300 pt-16 pb-12 border-t border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-12 border-b border-slate-800">
-          {/* Brand Info */}
-          <div className="md:col-span-1 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md overflow-hidden relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/logo.png"
-                  alt="Logo"
-                  className="w-full h-full object-contain relative z-10 bg-white"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
-                <Printer className="w-5 h-5 absolute inset-0 m-auto pointer-events-none" />
-              </div>
-              <span className="font-extrabold text-xl text-white tracking-tight">
-                {t.brandName}
-              </span>
+    <>
+      {/* Policy Modals */}
+      {activeModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-4 shadow-2xl border border-slate-200 max-h-[85vh] overflow-y-auto text-xs text-slate-700">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="font-black text-base text-slate-900">
+                {activeModal === "terms" && "Terms & Conditions (नियम व शर्तें)"}
+                {activeModal === "privacy" && "Zero-Storage Privacy Policy (गोपनीयता नीति)"}
+                {activeModal === "refund" && "Refund & Cancellation Policy (रिफंड नीति)"}
+              </h3>
+              <button
+                onClick={() => setActiveModal(null)}
+                className="p-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold"
+              >
+                ✕
+              </button>
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              {t.footerDesc}
-            </p>
-            <div className="flex items-center gap-2 text-xs text-emerald-400 font-semibold bg-emerald-950/50 border border-emerald-800/40 px-3 py-1.5 rounded-lg w-fit">
-              <Shield className="w-3.5 h-3.5" />
-              <span>100% Privacy & Auto-Purge Compliant</span>
+
+            {activeModal === "terms" && (
+              <div className="space-y-2.5 leading-relaxed">
+                <p>
+                  1. <strong>QR Print Seva</strong> is a self-service cloud queue &amp; printing facilitator designed for Indian cyber cafes, CSC centers, and xerox shops.
+                </p>
+                <p>
+                  2. Shop owners collect 100% of customer print fees directly to their own bank account/UPI with 0% commission.
+                </p>
+                <p>
+                  3. Illegal or prohibited documents (such as counterfeiting currency, forged government stamps) are strictly forbidden under Indian IT Act.
+                </p>
+                <p>
+                  4. The 24-hour free demo is provided with zero credit card commitment. Subscription plans can be renewed or upgraded anytime.
+                </p>
+              </div>
+            )}
+
+            {activeModal === "privacy" && (
+              <div className="space-y-2.5 leading-relaxed">
+                <p>
+                  1. <strong>Strict Zero-Storage Guarantee:</strong> Customer files (such as Aadhaar, PAN card, educational certificates, marksheets, bio-data) are temporarily streamed directly to the shop’s local printer.
+                </p>
+                <p>
+                  2. As soon as the physical print job is completed or rejected, the file is automatically purged from memory.
+                </p>
+                <p>
+                  3. We never sell, scrape, or share customer documents with any third-party advertising networks.
+                </p>
+              </div>
+            )}
+
+            {activeModal === "refund" && (
+              <div className="space-y-2.5 leading-relaxed">
+                <p>
+                  1. We offer a <strong>7-Day 100% Money-Back Guarantee</strong> on all paid plans if you are unable to connect your shop printer with our support team.
+                </p>
+                <p>
+                  2. WhatsApp remote setup assistance (+91 73886 88968) is available 24/7 to help you configure any USB or Wi-Fi printer.
+                </p>
+              </div>
+            )}
+
+            <button
+              onClick={() => setActiveModal(null)}
+              className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs"
+            >
+              समझ गए (Close)
+            </button>
+          </div>
+        </div>
+      )}
+
+      <footer className="bg-slate-950 text-slate-300 pt-16 pb-12 border-t border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          
+          {/* Main 4-Column Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-8 border-b border-slate-800/80">
+            
+            {/* Column 1: Brand Info & Official Declaration */}
+            <div className="md:col-span-1 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md overflow-hidden relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/logo.png"
+                    alt="Logo"
+                    className="w-full h-full object-contain relative z-10 bg-white"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                  <Printer className="w-5 h-5 absolute inset-0 m-auto pointer-events-none" />
+                </div>
+                <div>
+                  <span className="font-extrabold text-xl text-white tracking-tight">
+                    {t.brandName}
+                  </span>
+                  <span className="block text-[10px] text-blue-400 font-bold uppercase tracking-wider">
+                    Official Cloud Printing SaaS
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-400 leading-relaxed">
+                {language === "hi"
+                  ? "भारतीय साइबर कैफे, ज़ेरॉक्स दुकानों और सीएससी जन सेवा केंद्रों के लिए भारत का नंबर 1 सेल्फ-सर्विस क्लाउड प्रिंटिंग सॉफ़्टवेयर।"
+                  : "India's premier self-service automated cloud printing queue management platform tailored for Cyber Cafes, Xerox centers, and CSC Jan Seva Kendras."}
+              </p>
+
+              {/* Official Declaration Badge */}
+              <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-emerald-400">
+                  <Shield className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  <span>आधिकारिक घोषणा (Declaration):</span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-tight">
+                  100% Direct Bank UPI Transfer • 0% Platform Commission • Zero-Storage Auto-Purge Privacy Guarantee.
+                </p>
+              </div>
             </div>
-          </div>
 
-          {/* Quick Links */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider">
-              Quick Navigation
-            </h4>
-            <ul className="space-y-2 text-sm text-slate-400">
-              <li>
-                <a href="#features" className="hover:text-blue-400 transition-colors">
-                  {t.navFeatures}
-                </a>
-              </li>
-              <li>
-                <a href="#how-it-works" className="hover:text-blue-400 transition-colors">
-                  {t.navHowItWorks}
-                </a>
-              </li>
-              <li>
-                <a href="#tools" className="hover:text-blue-400 transition-colors">
-                  {t.navTools}
-                </a>
-              </li>
-              <li>
-                <a href="#pricing" className="hover:text-blue-400 transition-colors">
-                  {t.navPricing}
-                </a>
-              </li>
-              <li>
-                <Link href="/dashboard" className="hover:text-blue-400 transition-colors">
-                  {t.navDashboard}
-                </Link>
-              </li>
-            </ul>
-          </div>
+            {/* Column 2: Quick Links & Legal */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                Quick Navigation &amp; Legal
+              </h4>
+              <ul className="space-y-2 text-xs text-slate-400">
+                <li>
+                  <Link href="/" className="hover:text-blue-400 transition-colors">
+                    Home (मुख्य पृष्ठ)
+                  </Link>
+                </li>
+                <li>
+                  <a href="#how-to-setup" className="hover:text-blue-400 transition-colors">
+                    How to Setup (सेटअप गाइड)
+                  </a>
+                </li>
+                <li>
+                  <a href="#features" className="hover:text-blue-400 transition-colors">
+                    Features (फीचर्स)
+                  </a>
+                </li>
+                <li>
+                  <a href="#about" className="hover:text-blue-400 transition-colors">
+                    About Us (हमारे बारे में)
+                  </a>
+                </li>
+                <li>
+                  <a href="#contact" className="hover:text-blue-400 transition-colors">
+                    Contact Us (संपर्क करें)
+                  </a>
+                </li>
+                <li className="pt-2 border-t border-slate-800">
+                  <button
+                    onClick={() => setActiveModal("terms")}
+                    className="hover:text-blue-400 transition-colors text-left"
+                  >
+                    Terms &amp; Conditions (नियम व शर्तें)
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => setActiveModal("privacy")}
+                    className="hover:text-blue-400 transition-colors text-left"
+                  >
+                    Zero-Storage Privacy Policy (गोपनीयता नीति)
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => setActiveModal("refund")}
+                    className="hover:text-blue-400 transition-colors text-left"
+                  >
+                    Refund &amp; Cancellation (रिफंड नीति)
+                  </button>
+                </li>
+              </ul>
+            </div>
 
-          {/* Power Tools */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider">
-              Cyber Cafe Tools
-            </h4>
-            <ul className="space-y-2 text-sm text-slate-400">
-              <li>
-                <Link href="/tools/passport-photo" className="hover:text-blue-400 transition-colors">
-                  Passport Photo Studio (4x6 / A4)
-                </Link>
-              </li>
-              <li>
-                <Link href="/tools/id-card" className="hover:text-blue-400 transition-colors">
-                  Aadhaar 2-in-1 Smart Crop
-                </Link>
-              </li>
-              <li>
-                <Link href="/tools/resume-builder" className="hover:text-blue-400 transition-colors">
-                  Resume & Marriage Bio-Data
-                </Link>
-              </li>
-              <li>
-                <Link href="/tools/doc-scanner" className="hover:text-blue-400 transition-colors">
-                  Document Scanner & Enhancer
-                </Link>
-              </li>
-              <li>
-                <Link href="/tools/pdf-tools" className="hover:text-blue-400 transition-colors">
-                  PDF Merge, Split & Compress
-                </Link>
-              </li>
-            </ul>
-          </div>
+            {/* Column 3: Partner Program & Tools */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                Become Agent &amp; Tools
+              </h4>
+              <ul className="space-y-2.5 text-xs text-slate-400">
+                <li>
+                  <Link
+                    href="/partner"
+                    className="p-2 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 text-amber-300 font-bold flex items-center justify-between hover:border-amber-400 transition"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-amber-400" />
+                      <span>Become Agent (पार्टनर प्रोग्राम)</span>
+                    </div>
+                    <span className="text-[10px] bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded font-black">
+                      ₹25k+/mo
+                    </span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/tools/id-card" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
+                    <span>Aadhaar 2-in-1 Smart Crop</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/tools/passport-photo" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
+                    <span>Passport Photo Studio (4x6 / A4)</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/tools/resume-builder" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
+                    <span>Marriage Bio-Data &amp; Resume</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/tools/doc-scanner" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
+                    <span>Doc Scanner &amp; Xerox Filter</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/tools/pdf-tools" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
+                    <span>PDF Merge, Split &amp; Compress</span>
+                  </Link>
+                </li>
+              </ul>
+            </div>
 
-          {/* Support & Contact */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider">
-              Direct Support & Help
-            </h4>
-            <div className="space-y-2.5 text-xs text-slate-400">
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                <span>WhatsApp Helpline: +91 98765 43210</span>
+            {/* Column 4: Direct Support & Social Media Follow Links */}
+            <div className="space-y-4">
+              <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                Direct Help &amp; Social Follow
+              </h4>
+
+              <div className="space-y-2 text-xs text-slate-400">
+                <a
+                  href="https://wa.me/917388688968?text=Hello%20QR%20Print%20Seva%20Help"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-emerald-400 hover:text-emerald-300 font-bold transition"
+                >
+                  <Phone className="w-4 h-4 flex-shrink-0" />
+                  <span>WhatsApp: +91 73886 88968</span>
+                </a>
+
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                  <span>support@qrprintseva.in</span>
+                </div>
+
+                <div className="flex items-center gap-2 text-slate-500">
+                  <MapPin className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                  <span>Gorakhpur, Uttar Pradesh (India)</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                <span>support@qrprintseva.in</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-purple-400 flex-shrink-0" />
-                <span>Made for Cyber Cafes Across All Indian States</span>
-              </div>
-              <div className="pt-2">
-                <span className="inline-block px-3 py-1 bg-blue-900/50 border border-blue-700/50 rounded-lg text-blue-300 font-semibold text-xs">
-                  ⚡ 24/7 WhatsApp Remote Setup Support
+
+              {/* Social Media Follow Icons */}
+              <div className="space-y-1.5 pt-2 border-t border-slate-800">
+                <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Follow Us Online:
                 </span>
-              </div>
-            </div>
-          </div>
-        </div>
+                <div className="flex items-center gap-2">
+                  {/* YouTube */}
+                  <a
+                    href="https://youtube.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-8 h-8 rounded-lg bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white flex items-center justify-center transition border border-rose-500/30"
+                    title="YouTube Channel"
+                  >
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                    </svg>
+                  </a>
 
-        {/* Bottom copyright */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
-          <p>{t.footerCopyright}</p>
-          <div className="flex items-center gap-1">
-            <span>{t.footerMadeWithLove}</span>
+                  {/* WhatsApp */}
+                  <a
+                    href="https://wa.me/917388688968"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-8 h-8 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white flex items-center justify-center transition border border-emerald-500/30"
+                    title="WhatsApp Community"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </a>
+
+                  {/* Instagram */}
+                  <a
+                    href="https://instagram.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-8 h-8 rounded-lg bg-pink-600/20 hover:bg-pink-600 text-pink-400 hover:text-white flex items-center justify-center transition border border-pink-500/30"
+                    title="Instagram Page"
+                  >
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                    </svg>
+                  </a>
+
+                  {/* Telegram */}
+                  <a
+                    href="https://t.me"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-8 h-8 rounded-lg bg-sky-600/20 hover:bg-sky-600 text-sky-400 hover:text-white flex items-center justify-center transition border border-sky-500/30"
+                    title="Telegram Channel"
+                  >
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.34-.675.34l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.538-.196 1.006.128.832.947z" />
+                    </svg>
+                  </a>
+                </div>
+              </div>
+
+            </div>
+
           </div>
+
+          {/* Bottom Copyright Strip */}
+          <div className="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
+            <p>
+              © {new Date().getFullYear()} QR Print Seva (क्यूआर प्रिंट सेवा). All Rights Reserved across India.
+            </p>
+            <p className="flex items-center gap-1 text-[11px] text-slate-400">
+              Made with ❤️ for Indian Cyber Cafes &amp; CSC Centers
+            </p>
+          </div>
+
         </div>
-      </div>
-    </footer>
+      </footer>
+    </>
   );
 };
