@@ -110,7 +110,7 @@ export default function ShopLoginPage() {
               <Zap className="w-4 h-4 text-amber-600 fill-amber-600" />
               <span>
                 {language === "hi"
-                  ? "⚡ 1-क्लिक टेस्ट लॉगिन (Sharma Cyber Cafe)"
+                  ? "⚡ 1-क्लिक टेस्ट लॉगिन (शर्मा साइबर कैफे)"
                   : "⚡ 1-Click Test Login (Sharma Cyber Cafe)"}
               </span>
             </button>
@@ -143,7 +143,7 @@ export default function ShopLoginPage() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-slate-700 font-bold">
-                    {language === "hi" ? "पासवर्ड (मोबाइल नंबर):" : "Password (Mobile No):"}
+                    {language === "hi" ? "पासवर्ड:" : "Password:"}
                   </label>
                   <a
                     href="https://wa.me/917388688968?text=Forgot%20Password%20Help"
@@ -151,7 +151,7 @@ export default function ShopLoginPage() {
                     rel="noreferrer"
                     className="text-[11px] text-blue-600 hover:underline font-semibold"
                   >
-                    पासवर्ड भूल गए?
+                    {language === "hi" ? "पासवर्ड भूल गए?" : "Forgot Password?"}
                   </a>
                 </div>
                 <div className="relative">
@@ -172,14 +172,20 @@ export default function ShopLoginPage() {
                 disabled={loading}
                 className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
               >
-                <span>{loading ? "लॉगिन हो रहा है..." : "डैशबोर्ड में प्रवेश करें (Login) ›"}</span>
+                <span>
+                  {loading
+                    ? (language === "hi" ? "लॉगिन हो रहा है..." : "Logging in...")
+                    : (language === "hi" ? "डैशबोर्ड में प्रवेश करें ›" : "Login to Dashboard ›")}
+                </span>
               </button>
             </form>
 
             {/* Create Demo Account Option */}
             <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-center space-y-1.5">
               <span className="block text-xs font-bold text-rose-900">
-                क्या आपने अभी तक दुकान रजिस्टर नहीं की?
+                {language === "hi"
+                  ? "क्या आपने अभी तक दुकान रजिस्टर नहीं की?"
+                  : "Don't have a shop account yet?"}
               </span>
               <button
                 type="button"
@@ -187,7 +193,7 @@ export default function ShopLoginPage() {
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-md transition active:scale-95"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>24-घंटे फ्री डेमो अकाउंट बनाएं ›</span>
+                <span>{language === "hi" ? "24-घंटे फ्री डेमो अकाउंट बनाएं ›" : "Create 24-Hr Free Demo ›"}</span>
               </button>
             </div>
 

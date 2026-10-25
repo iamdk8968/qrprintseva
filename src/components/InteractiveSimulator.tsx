@@ -233,7 +233,7 @@ export const InteractiveSimulator: React.FC = () => {
                   {/* Copies selector */}
                   <div className="flex items-center justify-between pt-1">
                     <span className="text-[11px] font-semibold text-slate-600">
-                      {language === "hi" ? "प्रतियां (Copies):" : "Copies:"}
+                      {language === "hi" ? "प्रतियां:" : "Copies:"}
                     </span>
                     <div className="flex items-center gap-2">
                       <button

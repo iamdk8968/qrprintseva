@@ -234,7 +234,7 @@ export default function CustomerPrintPage({
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span className="text-[11px] font-bold text-emerald-600">
-                  {language === "hi" ? "प्रिंटर चालू है (Active)" : "Printer Ready & Active"}
+                  {language === "hi" ? "प्रिंटर तैयार है" : "Printer Ready & Active"}
                 </span>
               </div>
             </div>
@@ -399,7 +399,7 @@ export default function CustomerPrintPage({
               {/* Copies */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
-                  {language === "hi" ? "प्रतियां (Copies):" : "Copies:"}
+                  {language === "hi" ? "प्रतियां:" : "Copies:"}
                 </label>
                 <div className="flex items-center justify-between border border-slate-200 rounded-xl p-1.5 bg-slate-50">
                   <button
@@ -526,7 +526,7 @@ export default function CustomerPrintPage({
                     ? `₹${totalAmount} UPI से पे करके प्रिंट करें`
                     : `Pay ₹${totalAmount} via UPI & Print`
                   : language === "hi"
-                  ? `₹${totalAmount} काउंटर पर दें (Send Order)`
+                  ? `₹${totalAmount} काउंटर पर दें`
                   : `Send Order (Pay ₹${totalAmount} Cash)`}
               </span>
             </button>

@@ -25,6 +25,8 @@ import {
   DollarSign,
   AlertCircle,
   ExternalLink,
+  Laptop,
+  ShieldCheck,
 } from "lucide-react";
 
 interface PrintJob {
@@ -350,7 +352,7 @@ export default function ShopkeeperDashboard() {
               title="Launch Fullscreen Queue for TV/Monitor"
             >
               <Tv className="w-4 h-4 text-indigo-600" />
-              <span>{language === "hi" ? "टीवी स्क्रीन (Live TV)" : "TV Queue Screen"}</span>
+              <span>{language === "hi" ? "टीवी स्क्रीन" : "TV Queue Screen"}</span>
             </Link>
 
             {/* Sound Toggle */}
@@ -453,7 +455,7 @@ export default function ShopkeeperDashboard() {
                 <div className="flex items-center gap-2">
                   <Printer className="w-5 h-5 text-blue-600" />
                   <h3 className="font-black text-slate-900 text-lg">
-                    {language === "hi" ? "लाइव प्रिंट कतार (Live Spooler)" : "Live Print Spooler Queue"}
+                    {language === "hi" ? "लाइव प्रिंट कतार" : "Live Print Spooler Queue"}
                   </h3>
                 </div>
 
@@ -469,7 +471,9 @@ export default function ShopkeeperDashboard() {
                         : "bg-slate-100 text-slate-600 border border-slate-300"
                     }`}
                   >
-                    {autoPrintEnabled ? "ENABLED (सक्रिय)" : "MANUAL (मैन्युअल)"}
+                    {autoPrintEnabled
+                      ? (language === "hi" ? "चालू (Auto)" : "ENABLED")
+                      : (language === "hi" ? "मैन्युअल" : "MANUAL")}
                   </button>
                 </div>
               </div>
@@ -645,7 +649,7 @@ export default function ShopkeeperDashboard() {
                   className="w-full py-2.5 rounded-xl border border-slate-300 hover:border-emerald-600 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 text-xs font-bold transition flex items-center justify-center gap-2 active:scale-95"
                 >
                   <Download className="w-4 h-4 text-emerald-600" />
-                  <span>{language === "hi" ? "QR कोड डाउनलोड करें (PNG)" : "Download QR Code (PNG)"}</span>
+                  <span>{language === "hi" ? "QR कोड डाउनलोड करें" : "Download QR Code (PNG)"}</span>
                 </button>
 
                 <Link
@@ -656,6 +660,63 @@ export default function ShopkeeperDashboard() {
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>{language === "hi" ? "ग्राहक पेज खोलकर देखें" : "Test Customer Page"}</span>
                 </Link>
+              </div>
+            </div>
+
+            {/* Windows Desktop Agent Control Card */}
+            <div className="glass-card rounded-3xl p-6 bg-slate-900 text-white shadow-lg border border-slate-800 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Laptop className="w-5 h-5 text-sky-400" />
+                  <div>
+                    <h3 className="font-extrabold text-white text-sm">
+                      {language === "hi" ? "विंडोज प्रिंट एजेंट (v3.5)" : "Windows Print Agent (v3.5)"}
+                    </h3>
+                    <span className="text-[10px] text-slate-400">Silent Auto-Print • 5 Slots</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-full text-[10px] font-bold border border-emerald-500/30">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>{language === "hi" ? "एजेंट ऑनलाइन" : "Agent Online"}</span>
+                </div>
+              </div>
+
+              {/* 5 Connected Slots Overview */}
+              <div className="space-y-1.5 text-[11px] bg-slate-950/60 p-3 rounded-2xl border border-slate-800 font-mono">
+                <div className="flex justify-between text-slate-400">
+                  <span>1. B&amp;W Slot:</span>
+                  <span className="text-slate-200 font-bold truncate max-w-[140px]">HP LaserJet 1020</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>2. Color Slot:</span>
+                  <span className="text-slate-200 font-bold truncate max-w-[140px]">Epson L3210 Series</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>3. Duplex Slot:</span>
+                  <span className="text-slate-200 font-bold truncate max-w-[140px]">Canon LBP2900</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>4. 4x6 Photo Slot:</span>
+                  <span className="text-slate-200 font-bold truncate max-w-[140px]">Epson L805 Photo</span>
+                </div>
+              </div>
+
+              {/* Download Windows Agent Button */}
+              <a
+                href="/print-agent/qrprintseva_agent.py"
+                download="QRPrintSeva_Windows_Agent.py"
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-extrabold text-xs shadow-md transition flex items-center justify-center gap-2 active:scale-95 text-center"
+              >
+                <Download className="w-4 h-4" />
+                <span>{language === "hi" ? "सॉफ्टवेयर डाउनलोड करें (.exe / Script)" : "Download Agent Software (.exe)"}</span>
+              </a>
+
+              <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                <span className="flex items-center gap-1 text-emerald-400">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Zero-Storage Safe</span>
+                </span>
+                <span>Windows 7, 10, 11 (32/64 bit)</span>
               </div>
             </div>
 
@@ -715,7 +776,7 @@ export default function ShopkeeperDashboard() {
                       ? "सफलतापूर्वक सेव हो गया! ✓"
                       : "Settings Saved Successfully! ✓"
                     : language === "hi"
-                    ? "सेव करें (Save Settings)"
+                    ? "सेटिंग्स सेव करें"
                     : "Save Configuration"}
                 </button>
               </div>

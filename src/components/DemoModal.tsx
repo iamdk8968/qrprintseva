@@ -162,8 +162,8 @@ export const DemoModal: React.FC<DemoModalProps> = ({
   const handleDownloadAgent = () => {
     // Download print agent script/executable
     const link = document.createElement("a");
-    link.href = "/print-agent/smartprint_agent.py";
-    link.download = "QRPrintSeva_Silent_Agent.py";
+    link.href = "/print-agent/qrprintseva_agent.py";
+    link.download = "QRPrintSeva_Windows_Agent.py";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -222,7 +222,7 @@ export const DemoModal: React.FC<DemoModalProps> = ({
               {/* Owner Name */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  आपका नाम / Owner Name:
+                  {language === "hi" ? "आपका नाम:" : "Owner Name:"}
                 </label>
                 <input
                   type="text"
@@ -237,7 +237,7 @@ export const DemoModal: React.FC<DemoModalProps> = ({
               {/* WhatsApp Number */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  WhatsApp Number (10 digits):
+                  {language === "hi" ? "व्हाट्सएप नंबर (10 अंक):" : "WhatsApp Number (10 digits):"}
                 </label>
                 <div className="flex items-center rounded-xl border border-slate-300 overflow-hidden focus-within:ring-2 focus-within:ring-rose-500">
                   <span className="px-3 py-3 bg-slate-100 text-slate-600 font-mono font-bold text-xs border-r border-slate-300">
@@ -258,7 +258,7 @@ export const DemoModal: React.FC<DemoModalProps> = ({
               {/* Shop Name */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Shop Name:
+                  {language === "hi" ? "दुकान का नाम:" : "Shop Name:"}
                 </label>
                 <input
                   type="text"
@@ -273,7 +273,7 @@ export const DemoModal: React.FC<DemoModalProps> = ({
               {/* Shop Address */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Shop Address:
+                  {language === "hi" ? "दुकान का पता:" : "Shop Address:"}
                 </label>
                 <input
                   type="text"
@@ -287,7 +287,7 @@ export const DemoModal: React.FC<DemoModalProps> = ({
               {/* Email Address */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Email Address:
+                  {language === "hi" ? "ईमेल पता:" : "Email Address:"}
                 </label>
                 <input
                   type="email"
@@ -301,7 +301,7 @@ export const DemoModal: React.FC<DemoModalProps> = ({
               {/* Default Printer (Auto-selected) */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Default Printer:
+                  {language === "hi" ? "डिफ़ॉल्ट प्रिंटर:" : "Default Printer:"}
                 </label>
                 <div className="flex items-center gap-2 p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-semibold">
                   <Printer className="w-4 h-4 text-slate-500 flex-shrink-0" />
@@ -315,19 +315,25 @@ export const DemoModal: React.FC<DemoModalProps> = ({
                 disabled={isSubmitting}
                 className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#ff2e63] to-[#e01e51] hover:from-[#e01e51] hover:to-[#c41542] text-white font-extrabold text-sm sm:text-base shadow-lg shadow-rose-500/25 transition flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
               >
-                <span>{isSubmitting ? "दुकान बनाई जा रही है..." : "Start the Demo — Free ›"}</span>
+                <span>
+                  {isSubmitting
+                    ? (language === "hi" ? "दुकान बनाई जा रही है..." : "Creating Shop...")
+                    : (language === "hi" ? "फ्री डेमो शुरू करें ›" : "Start the Demo — Free ›")}
+                </span>
               </button>
 
               <div className="text-center pt-1 space-y-1">
                 <p className="text-[11px] text-slate-500 font-medium">
-                  Shop ID and password appear on screen instantly • No payment
+                  {language === "hi"
+                    ? "दुकान आईडी और पासवर्ड तुरंत स्क्रीन पर दिखेंगे • कोई शुल्क नहीं"
+                    : "Shop ID and password appear on screen instantly • No payment"}
                 </p>
                 <button
                   type="button"
                   onClick={onClose}
                   className="text-xs text-slate-400 hover:text-slate-600 underline font-semibold"
                 >
-                  Turn off
+                  {language === "hi" ? "बंद करें" : "Turn off"}
                 </button>
               </div>
             </form>

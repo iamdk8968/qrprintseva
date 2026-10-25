@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import QRCode from "qrcode";
+import { useLanguage } from "@/context/LanguageContext";
 import {
   CreditCard,
   QrCode,
@@ -36,6 +37,7 @@ export const DynamicUpiPayment: React.FC<DynamicUpiPaymentProps> = ({
   onCancel,
   onSwitchToCash,
 }) => {
+  const { language } = useLanguage();
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [utrNumber, setUtrNumber] = useState("");
@@ -133,7 +135,9 @@ export const DynamicUpiPayment: React.FC<DynamicUpiPaymentProps> = ({
           </h3>
 
           <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-xs text-blue-200">देय राशि (Payable Amount):</span>
+            <span className="text-xs text-blue-200">
+              {language === "hi" ? "देय राशि:" : "Payable Amount:"}
+            </span>
             <span className="text-3xl font-black text-white font-mono">
               ₹{formattedAmount}
             </span>
@@ -233,7 +237,9 @@ export const DynamicUpiPayment: React.FC<DynamicUpiPaymentProps> = ({
           {/* UTR Input (Optional) & Confirm Button */}
           <div className="space-y-2 pt-1">
             <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-              <span className="font-bold">UTR / Ref No. (वैकल्पिक):</span>
+              <span className="font-bold">
+                {language === "hi" ? "UTR / Ref No. (वैकल्पिक):" : "UTR / Ref No. (Optional):"}
+              </span>
             </div>
             <input
               type="text"
@@ -251,12 +257,16 @@ export const DynamicUpiPayment: React.FC<DynamicUpiPaymentProps> = ({
               {isVerifying ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>पेमेंट सत्यापित हो रहा है...</span>
+                  <span>{language === "hi" ? "पेमेंट सत्यापित हो रहा है..." : "Verifying Payment..."}</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-                  <span>मैंने ₹{formattedAmount} पेमेंट कर दिया (Proceed to Print)</span>
+                  <span>
+                    {language === "hi"
+                      ? `मैंने ₹${formattedAmount} पेमेंट कर दिया`
+                      : `I have paid ₹${formattedAmount} ›`}
+                  </span>
                 </>
               )}
             </button>
@@ -270,7 +280,9 @@ export const DynamicUpiPayment: React.FC<DynamicUpiPaymentProps> = ({
                 onClick={onSwitchToCash}
                 className="text-xs text-slate-500 hover:text-slate-800 font-bold underline"
               >
-                ऑनलाइन पेमेंट नहीं हो रहा? काउंटर पर नकद दें (Pay Cash)
+                {language === "hi"
+                  ? "ऑनलाइन पेमेंट नहीं हो रहा? काउंटर पर नकद दें"
+                  : "Can't pay online? Pay cash at counter"}
               </button>
             </div>
           )}

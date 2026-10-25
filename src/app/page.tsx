@@ -208,7 +208,7 @@ export default function HomePage() {
                 <div className="w-6 h-6 rounded-full bg-rose-100 flex items-center justify-center text-rose-600">
                   <Play className="w-3 h-3 fill-rose-600 ml-0.5" />
                 </div>
-                <span>{language === "hi" ? "सेटअप वीडियो देखें (2 min)" : "Watch Setup Video"}</span>
+                <span>{language === "hi" ? "सेटअप वीडियो देखें" : "Watch Setup Video"}</span>
               </button>
             </div>
 
@@ -399,7 +399,7 @@ export default function HomePage() {
               <Zap className="w-6 h-6" />
             </div>
             <h3 className="font-black text-base text-slate-900">
-              {language === "hi" ? "साइलेंट ऑटो-प्रिंट (No Popups)" : "Silent Auto-Print (No Popups)"}
+              {language === "hi" ? "साइलेंट ऑटो-प्रिंट" : "Silent Auto-Print"}
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed">
               {language === "hi"
@@ -477,7 +477,7 @@ export default function HomePage() {
             5 Super Value-Added Tools
           </span>
           <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            {language === "hi" ? "5 साइबर कैफ़े सुपर टूल्स (Included Free)" : "5 Cyber Cafe Super Tools"}
+            {language === "hi" ? "5 साइबर कैफ़े सुपर टूल्स" : "5 Cyber Cafe Super Tools"}
           </h2>
           <p className="text-xs sm:text-sm text-slate-600">
             {language === "hi"
@@ -625,7 +625,7 @@ export default function HomePage() {
           {/* Plan 2: Yearly (Best Seller) */}
           <div className="glass-card rounded-3xl p-6 bg-white border-2 border-blue-600 shadow-xl flex flex-col justify-between space-y-5 relative">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow">
-              🔥 Best Value (सबसे लोकप्रिय)
+              {language === "hi" ? "🔥 सबसे लोकप्रिय" : "🔥 Best Value"}
             </div>
 
             <div className="space-y-3">
@@ -658,7 +658,7 @@ export default function HomePage() {
               <span className="text-xs font-black text-purple-600 uppercase tracking-wider block">लाइफ़टाइम लाइसेंस</span>
               <div className="flex items-baseline gap-1">
                 <span className="text-4xl font-black text-slate-900">₹1,299</span>
-                <span className="text-xs text-slate-500 font-bold">/ एक बार (LifeTime)</span>
+                <span className="text-xs text-slate-500 font-bold">/ {language === "hi" ? "एक बार" : "One-time"}</span>
               </div>
               <p className="text-xs text-slate-500">हमेशा के लिए फुर्सत — कोई रिन्यूअल फीस नहीं।</p>
               <ul className="space-y-2 text-xs text-slate-600 pt-3 border-t border-slate-100">
@@ -760,7 +760,9 @@ export default function HomePage() {
               <form onSubmit={handleContactSubmit} className="space-y-3.5 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-slate-700 font-bold mb-1">आपका नाम (Your Name):</label>
+                    <label className="block text-slate-700 font-bold mb-1">
+                      {language === "hi" ? "आपका नाम:" : "Your Name:"}
+                    </label>
                     <input
                       type="text"
                       placeholder="e.g. Ramesh Kumar"
@@ -771,7 +773,9 @@ export default function HomePage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-700 font-bold mb-1">दुकान का नाम (Shop Name):</label>
+                    <label className="block text-slate-700 font-bold mb-1">
+                      {language === "hi" ? "दुकान का नाम:" : "Shop Name:"}
+                    </label>
                     <input
                       type="text"
                       placeholder="e.g. Sharma CSC Center"
@@ -784,7 +788,9 @@ export default function HomePage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-slate-700 font-bold mb-1">मोबाइल नंबर (WhatsApp Phone):</label>
+                    <label className="block text-slate-700 font-bold mb-1">
+                      {language === "hi" ? "मोबाइल नंबर (व्हाट्सएप):" : "WhatsApp Number:"}
+                    </label>
                     <input
                       type="tel"
                       placeholder="e.g. 9876543210"
@@ -796,7 +802,9 @@ export default function HomePage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-700 font-bold mb-1">शहर / ज़िला (City / State):</label>
+                    <label className="block text-slate-700 font-bold mb-1">
+                      {language === "hi" ? "शहर / ज़िला:" : "City / District:"}
+                    </label>
                     <input
                       type="text"
                       placeholder="e.g. Gorakhpur, UP"
@@ -812,7 +820,7 @@ export default function HomePage() {
                   className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition flex items-center justify-center gap-2 active:scale-95"
                 >
                   <Send className="w-4 h-4" />
-                  <span>कॉल बैक का अनुरोध भेजें (Send Request)</span>
+                  <span>{language === "hi" ? "कॉल बैक का अनुरोध भेजें" : "Request Callback"}</span>
                 </button>
               </form>
             )}
@@ -827,7 +835,7 @@ export default function HomePage() {
             Got Questions?
           </span>
           <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            {language === "hi" ? "अक्सर पूछे जाने वाले सवाल (FAQ)" : "Frequently Asked Questions"}
+            {language === "hi" ? "अक्सर पूछे जाने वाले सवाल" : "Frequently Asked Questions"}
           </h2>
         </div>
 

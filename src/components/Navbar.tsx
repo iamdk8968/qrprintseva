@@ -87,7 +87,7 @@ export const Navbar: React.FC = () => {
             <nav className="hidden lg:flex items-center gap-6 text-xs sm:text-sm font-bold text-slate-600">
               {/* Home */}
               <Link href="/" className="hover:text-blue-600 transition-colors">
-                {language === "hi" ? "होम (Home)" : "Home"}
+                {language === "hi" ? "होम" : "Home"}
               </Link>
 
               {/* How to Setup with Video Guide */}
@@ -99,7 +99,7 @@ export const Navbar: React.FC = () => {
                 <div className="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center text-rose-600">
                   <Play className="w-2.5 h-2.5 fill-rose-600 ml-0.5" />
                 </div>
-                <span>{language === "hi" ? "सेटअप वीडियो गाइड" : "How to Setup (Video)"}</span>
+                <span>{language === "hi" ? "सेटअप वीडियो गाइड" : "How to Setup"}</span>
               </button>
 
               {/* Features */}
@@ -164,7 +164,7 @@ export const Navbar: React.FC = () => {
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-extrabold shadow-md shadow-blue-500/20 transition active:scale-95"
                 >
                   <Store className="w-4 h-4" />
-                  <span>{language === "hi" ? "दुकान लॉगिन / रजिस्टर" : "Shop Login / Register"}</span>
+                  <span>{language === "hi" ? "दुकानदार लॉगिन" : "Shop Login"}</span>
                 </Link>
               )}
 
@@ -188,7 +188,7 @@ export const Navbar: React.FC = () => {
               onClick={() => setMobileMenuOpen(false)}
               className="block p-2 rounded-lg hover:bg-slate-50 text-slate-800"
             >
-              {language === "hi" ? "होम (Home)" : "Home"}
+              {language === "hi" ? "होम" : "Home"}
             </Link>
 
             <button
@@ -199,7 +199,7 @@ export const Navbar: React.FC = () => {
               className="w-full text-left p-2 rounded-lg hover:bg-rose-50 text-rose-600 flex items-center gap-2"
             >
               <Play className="w-3.5 h-3.5 fill-rose-600" />
-              <span>{language === "hi" ? "सेटअप वीडियो गाइड (2 min)" : "How to Setup (Video)"}</span>
+              <span>{language === "hi" ? "सेटअप वीडियो गाइड" : "How to Setup"}</span>
             </button>
 
             <a
@@ -243,7 +243,7 @@ export const Navbar: React.FC = () => {
                 onClick={() => setMobileMenuOpen(false)}
                 className="w-full py-2.5 rounded-xl border border-blue-600 text-blue-600 font-black text-center"
               >
-                <span>{language === "hi" ? "दुकान लॉगिन / रजिस्टर" : "Shop Login / Register"}</span>
+                <span>{language === "hi" ? "दुकानदार लॉगिन" : "Shop Login"}</span>
               </Link>
             </div>
           </div>

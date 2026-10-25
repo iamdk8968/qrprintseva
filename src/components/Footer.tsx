@@ -29,9 +29,9 @@ export const Footer: React.FC = () => {
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-4 shadow-2xl border border-slate-200 max-h-[85vh] overflow-y-auto text-xs text-slate-700">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="font-black text-base text-slate-900">
-                {activeModal === "terms" && "Terms & Conditions (नियम व शर्तें)"}
-                {activeModal === "privacy" && "Zero-Storage Privacy Policy (गोपनीयता नीति)"}
-                {activeModal === "refund" && "Refund & Cancellation Policy (रिफंड नीति)"}
+                {activeModal === "terms" && (language === "hi" ? "नियम व शर्तें" : "Terms & Conditions")}
+                {activeModal === "privacy" && (language === "hi" ? "ज़ीरो-स्टोरेज गोपनीयता नीति" : "Zero-Storage Privacy Policy")}
+                {activeModal === "refund" && (language === "hi" ? "रिफंड व रद्दीकरण नीति" : "Refund & Cancellation Policy")}
               </h3>
               <button
                 onClick={() => setActiveModal(null)}
@@ -87,7 +87,7 @@ export const Footer: React.FC = () => {
               onClick={() => setActiveModal(null)}
               className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs"
             >
-              समझ गए (Close)
+              {language === "hi" ? "समझ गए (बंद करें)" : "Close"}
             </button>
           </div>
         </div>
@@ -134,10 +134,12 @@ export const Footer: React.FC = () => {
               <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 space-y-1">
                 <div className="flex items-center gap-1.5 font-bold text-emerald-400">
                   <Shield className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                  <span>आधिकारिक घोषणा (Declaration):</span>
+                  <span>{language === "hi" ? "आधिकारिक घोषणा:" : "Official Declaration:"}</span>
                 </div>
                 <p className="text-[10px] text-slate-400 leading-tight">
-                  100% Direct Bank UPI Transfer • 0% Platform Commission • Zero-Storage Auto-Purge Privacy Guarantee.
+                  {language === "hi"
+                    ? "100% डायरेक्ट बैंक UPI ट्रांसफर • 0% प्लेटफॉर्म फीस • ज़ीरो-स्टोरेज प्राइवेसी गारंटी।"
+                    : "100% Direct Bank UPI Transfer • 0% Platform Commission • Zero-Storage Auto-Purge Guarantee."}
                 </p>
               </div>
             </div>
@@ -145,32 +147,32 @@ export const Footer: React.FC = () => {
             {/* Column 2: Quick Links & Legal */}
             <div className="space-y-3">
               <h4 className="text-xs font-black text-white uppercase tracking-wider">
-                Quick Navigation &amp; Legal
+                {language === "hi" ? "त्वरित लिंक व नीतियां" : "Quick Links & Legal"}
               </h4>
               <ul className="space-y-2 text-xs text-slate-400">
                 <li>
                   <Link href="/" className="hover:text-blue-400 transition-colors">
-                    Home (मुख्य पृष्ठ)
+                    {language === "hi" ? "होम" : "Home"}
                   </Link>
                 </li>
                 <li>
                   <a href="#how-to-setup" className="hover:text-blue-400 transition-colors">
-                    How to Setup (सेटअप गाइड)
+                    {language === "hi" ? "सेटअप गाइड" : "How to Setup"}
                   </a>
                 </li>
                 <li>
                   <a href="#features" className="hover:text-blue-400 transition-colors">
-                    Features (फीचर्स)
+                    {language === "hi" ? "फीचर्स" : "Features"}
                   </a>
                 </li>
                 <li>
                   <a href="#about" className="hover:text-blue-400 transition-colors">
-                    About Us (हमारे बारे में)
+                    {language === "hi" ? "हमारे बारे में" : "About Us"}
                   </a>
                 </li>
                 <li>
                   <a href="#contact" className="hover:text-blue-400 transition-colors">
-                    Contact Us (संपर्क करें)
+                    {language === "hi" ? "संपर्क करें" : "Contact Us"}
                   </a>
                 </li>
                 <li className="pt-2 border-t border-slate-800">
@@ -178,7 +180,7 @@ export const Footer: React.FC = () => {
                     onClick={() => setActiveModal("terms")}
                     className="hover:text-blue-400 transition-colors text-left"
                   >
-                    Terms &amp; Conditions (नियम व शर्तें)
+                    {language === "hi" ? "नियम व शर्तें" : "Terms & Conditions"}
                   </button>
                 </li>
                 <li>
@@ -186,7 +188,7 @@ export const Footer: React.FC = () => {
                     onClick={() => setActiveModal("privacy")}
                     className="hover:text-blue-400 transition-colors text-left"
                   >
-                    Zero-Storage Privacy Policy (गोपनीयता नीति)
+                    {language === "hi" ? "ज़ीरो-स्टोरेज गोपनीयता नीति" : "Zero-Storage Privacy Policy"}
                   </button>
                 </li>
                 <li>
@@ -194,7 +196,7 @@ export const Footer: React.FC = () => {
                     onClick={() => setActiveModal("refund")}
                     className="hover:text-blue-400 transition-colors text-left"
                   >
-                    Refund &amp; Cancellation (रिफंड नीति)
+                    {language === "hi" ? "रिफंड व रद्दीकरण नीति" : "Refund & Cancellation"}
                   </button>
                 </li>
               </ul>
@@ -203,7 +205,7 @@ export const Footer: React.FC = () => {
             {/* Column 3: Partner Program & Tools */}
             <div className="space-y-3">
               <h4 className="text-xs font-black text-white uppercase tracking-wider">
-                Become Agent &amp; Tools
+                {language === "hi" ? "एजेंट पार्टनर व टूल्स" : "Become Agent & Tools"}
               </h4>
               <ul className="space-y-2.5 text-xs text-slate-400">
                 <li>
@@ -213,7 +215,7 @@ export const Footer: React.FC = () => {
                   >
                     <div className="flex items-center gap-1.5">
                       <Users className="w-4 h-4 text-amber-400" />
-                      <span>Become Agent (पार्टनर प्रोग्राम)</span>
+                      <span>{language === "hi" ? "एजेंट पार्टनर बनें" : "Become an Agent"}</span>
                     </div>
                     <span className="text-[10px] bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded font-black">
                       ₹25k+/mo
@@ -222,27 +224,27 @@ export const Footer: React.FC = () => {
                 </li>
                 <li>
                   <Link href="/tools/id-card" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
-                    <span>Aadhaar 2-in-1 Smart Crop</span>
+                    <span>{language === "hi" ? "आधार 2-इन-1 स्मार्ट क्रॉप" : "Aadhaar 2-in-1 Smart Crop"}</span>
                   </Link>
                 </li>
                 <li>
                   <Link href="/tools/passport-photo" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
-                    <span>Passport Photo Studio (4x6 / A4)</span>
+                    <span>{language === "hi" ? "पासपोर्ट फोटो स्टूडियो" : "Passport Photo Studio (4x6 / A4)"}</span>
                   </Link>
                 </li>
                 <li>
                   <Link href="/tools/resume-builder" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
-                    <span>Marriage Bio-Data &amp; Resume</span>
+                    <span>{language === "hi" ? "विवाह बायो-डाटा व रिज्यूम" : "Marriage Bio-Data & Resume"}</span>
                   </Link>
                 </li>
                 <li>
                   <Link href="/tools/doc-scanner" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
-                    <span>Doc Scanner &amp; Xerox Filter</span>
+                    <span>{language === "hi" ? "डॉक स्कैनर व ज़ेरॉक्स फिल्टर" : "Doc Scanner & Xerox Filter"}</span>
                   </Link>
                 </li>
                 <li>
                   <Link href="/tools/pdf-tools" className="hover:text-blue-400 transition-colors flex items-center gap-1.5">
-                    <span>PDF Merge, Split &amp; Compress</span>
+                    <span>{language === "hi" ? "पीडीएफ मर्ज व कंप्रेस टूल्स" : "PDF Merge, Split & Compress"}</span>
                   </Link>
                 </li>
               </ul>
@@ -251,7 +253,7 @@ export const Footer: React.FC = () => {
             {/* Column 4: Direct Support & Social Media Follow Links */}
             <div className="space-y-4">
               <h4 className="text-xs font-black text-white uppercase tracking-wider">
-                Direct Help &amp; Social Follow
+                {language === "hi" ? "सीधा सपोर्ट व सोशल मीडिया" : "Direct Help & Social Follow"}
               </h4>
 
               <div className="space-y-2 text-xs text-slate-400">
@@ -272,14 +274,14 @@ export const Footer: React.FC = () => {
 
                 <div className="flex items-center gap-2 text-slate-500">
                   <MapPin className="w-4 h-4 text-purple-400 flex-shrink-0" />
-                  <span>Gorakhpur, Uttar Pradesh (India)</span>
+                  <span>{language === "hi" ? "गोरखपुर, उत्तर प्रदेश (भारत)" : "Gorakhpur, Uttar Pradesh (India)"}</span>
                 </div>
               </div>
 
               {/* Social Media Follow Icons */}
               <div className="space-y-1.5 pt-2 border-t border-slate-800">
                 <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Follow Us Online:
+                  {language === "hi" ? "सोशल मीडिया पर फॉलो करें:" : "Follow Us Online:"}
                 </span>
                 <div className="flex items-center gap-2">
                   {/* YouTube */}
@@ -341,10 +343,14 @@ export const Footer: React.FC = () => {
           {/* Bottom Copyright Strip */}
           <div className="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
             <p>
-              © {new Date().getFullYear()} QR Print Seva (क्यूआर प्रिंट सेवा). All Rights Reserved across India.
+              {language === "hi"
+                ? `© ${new Date().getFullYear()} क्यूआर प्रिंट सेवा। सर्वाधिकार सुरक्षित।`
+                : `© ${new Date().getFullYear()} QR Print Seva. All Rights Reserved.`}
             </p>
             <p className="flex items-center gap-1 text-[11px] text-slate-400">
-              Made with ❤️ for Indian Cyber Cafes &amp; CSC Centers
+              {language === "hi"
+                ? "भारतीय साइबर कैफे व सीएससी केंद्रों के लिए गर्व से निर्मित ❤️"
+                : "Made with ❤️ for Indian Cyber Cafes & CSC Centers"}
             </p>
           </div>
 

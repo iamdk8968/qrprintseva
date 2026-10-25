@@ -284,7 +284,7 @@ export default function RegisterShopPage() {
             <div className="text-center pt-2 text-xs text-slate-500">
               {language === "hi" ? "पहले से रजिस्टर हैं?" : "Already registered?"}{" "}
               <Link href="/login" className="text-blue-600 font-bold hover:underline">
-                {language === "hi" ? "लॉगिन करें (Shop Login)" : "Log in here"}
+                {language === "hi" ? "लॉगिन करें" : "Log in here"}
               </Link>
             </div>
           </div>
