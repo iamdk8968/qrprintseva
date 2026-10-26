@@ -211,25 +211,57 @@ export default function ShopkeeperDashboard() {
       ? `${window.location.origin}/print/${shopSlug}`
       : `https://qrprintseva.vercel.app/print/${shopSlug}`;
 
-  // Generate High-Res QR Code for the shop
+  // Keep state synced when user profile loads from server/cache
+  useEffect(() => {
+    if (user) {
+      if (user.shopName) setEditShopName(user.shopName);
+      if (user.address) setEditAddress(user.address);
+      if (user.phone) setEditPhone(user.phone);
+      if (user.email) setEditEmail(user.email);
+      if (user.bwRate !== undefined) setBwRate(user.bwRate);
+      if (user.colorRate !== undefined) setColorRate(user.colorRate);
+      if (user.upiId) setShopUpi(user.upiId);
+      if (user.customLogo) setCustomLogo(user.customLogo);
+      if (user.connectedPc !== undefined) setConnectedPc(user.connectedPc);
+    }
+  }, [user]);
+
+  // Demo Countdown Timer ticking
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
+        if (prev.minutes > 0) return { ...prev, minutes: 59, seconds: 59 };
+        if (prev.hours > 0) return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
+        return prev;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Generate High-Res QR Code for the shop safely
   useEffect(() => {
     let isMounted = true;
-    QRCode.toDataURL(
-      customerPortalUrl,
-      {
-        width: 500,
-        margin: 2,
-        color: {
-          dark: "#0a1931",
-          light: "#ffffff",
+    try {
+      QRCode.toDataURL(
+        customerPortalUrl,
+        {
+          width: 500,
+          margin: 2,
+          color: {
+            dark: "#0a1931",
+            light: "#ffffff",
+          },
         },
-      },
-      (err, url) => {
-        if (!err && url && isMounted) {
-          setQrDataUrl(url);
+        (err, url) => {
+          if (!err && url && isMounted) {
+            setQrDataUrl(url);
+          }
         }
-      }
-    );
+      );
+    } catch {
+      // Safe fallback
+    }
     return () => {
       isMounted = false;
     };
@@ -242,14 +274,15 @@ export default function ShopkeeperDashboard() {
     const fetchQueue = async () => {
       try {
         const res = await fetch(`/api/orders?shopSlug=${shopSlug || shopId}`);
+        if (!res.ok) return;
         const data = await res.json();
-        if (data.orders && Array.isArray(data.orders)) {
+        if (data && data.orders && Array.isArray(data.orders)) {
           // Check for newly arrived orders to chime
-          const hasNew = data.orders.some((o: any) => !prevOrderIds.has(o.id) && o.status === "queued");
+          const hasNew = data.orders.some((o: any) => o && !prevOrderIds.has(o.id) && o.status === "queued");
           if (hasNew && prevOrderIds.size > 0 && soundEnabled) {
             playChime();
           }
-          prevOrderIds = new Set(data.orders.map((o: any) => o.id));
+          prevOrderIds = new Set(data.orders.filter((o: any) => o && o.id).map((o: any) => o.id));
           setOrders(data.orders);
         }
       } catch {
@@ -308,7 +341,7 @@ export default function ShopkeeperDashboard() {
   };
 
   const handleCopyLink = () => {
-    if (typeof navigator !== "undefined") {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(customerPortalUrl);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
@@ -316,7 +349,7 @@ export default function ShopkeeperDashboard() {
   };
 
   const handleCopyShopId = () => {
-    if (typeof navigator !== "undefined") {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(shopId);
       setCopiedShopId(true);
       setTimeout(() => setCopiedShopId(false), 2000);
@@ -1638,7 +1671,7 @@ export default function ShopkeeperDashboard() {
               </p>
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 font-mono text-sm font-black text-slate-900 flex items-center justify-between">
-                <span>REF-{shopId.substring(0, 8)}</span>
+                <span>REF-{String(shopId || "DEMO").substring(0, 8)}</span>
                 <button
                   type="button"
                   onClick={() => alert("Referral code copied!")}
@@ -1649,7 +1682,7 @@ export default function ShopkeeperDashboard() {
               </div>
 
               <a
-                href={`https://wa.me/?text=${encodeURIComponent(`Apne cyber cafe par silent QR printing setup karein: https://qrprintseva.vercel.app/register?ref=REF-${shopId.substring(0, 8)}`)}`}
+                href={`https://wa.me/?text=${encodeURIComponent(`Apne cyber cafe par silent QR printing setup karein: https://qrprintseva.vercel.app/register?ref=REF-${String(shopId || "DEMO").substring(0, 8)}`)}`}
                 target="_blank"
                 rel="noreferrer"
                 className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md transition flex items-center justify-center gap-2"

@@ -27,11 +27,6 @@ export const GlobalPromoModal: React.FC = () => {
   const pathname = usePathname();
   const { language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
-
-  // Suppress on dashboard
-  if (pathname?.startsWith("/dashboard")) {
-    return null;
-  }
   const [popupData, setPopupData] = useState<PopupData>({
     enabled: true,
     title: "⚡ Special Launch Offer (सीमित समय ऑफर)",
@@ -42,6 +37,9 @@ export const GlobalPromoModal: React.FC = () => {
   });
 
   useEffect(() => {
+    // Suppress on dashboard and admin
+    if (pathname?.startsWith("/dashboard") || pathname?.startsWith("/admin")) return;
+
     // Check if dismissed in this session
     const dismissed = sessionStorage.getItem("qrprintseva_promo_dismissed");
     if (dismissed === "true") return;
@@ -79,7 +77,14 @@ export const GlobalPromoModal: React.FC = () => {
     sessionStorage.setItem("qrprintseva_promo_dismissed", "true");
   };
 
-  if (!isOpen || !popupData.enabled) return null;
+  if (
+    pathname?.startsWith("/dashboard") ||
+    pathname?.startsWith("/admin") ||
+    !isOpen ||
+    !popupData.enabled
+  ) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">

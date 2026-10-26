@@ -34,12 +34,10 @@ export function CookieConsentBanner() {
   const [analyticsAllowed, setAnalyticsAllowed] = useState(false);
   const [marketingAllowed, setMarketingAllowed] = useState(false);
 
-  // Suppress on dashboard
-  if (pathname?.startsWith("/dashboard")) {
-    return null;
-  }
-
   useEffect(() => {
+    // Suppress on dashboard and admin
+    if (pathname?.startsWith("/dashboard") || pathname?.startsWith("/admin")) return;
+
     const existing = getCookiePreferences();
     if (!existing) {
       // Delay slightly for smooth page entrance
@@ -49,7 +47,7 @@ export function CookieConsentBanner() {
       setAnalyticsAllowed(existing.analytics);
       setMarketingAllowed(existing.marketing);
     }
-  }, []);
+  }, [pathname]);
 
   const savePreferences = (analytics: boolean, marketing: boolean) => {
     const prefs: CookiePreferences = {
@@ -85,7 +83,13 @@ export function CookieConsentBanner() {
     savePreferences(analyticsAllowed, marketingAllowed);
   };
 
-  if (!isOpen) return null;
+  if (
+    pathname?.startsWith("/dashboard") ||
+    pathname?.startsWith("/admin") ||
+    !isOpen
+  ) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-4 left-4 right-4 md:left-8 md:right-auto md:max-w-xl z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">

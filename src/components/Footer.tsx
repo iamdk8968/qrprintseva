@@ -23,8 +23,8 @@ export const Footer: React.FC = () => {
   const { language, t } = useLanguage();
   const [activeModal, setActiveModal] = useState<"terms" | "privacy" | "refund" | null>(null);
 
-  // Suppress website footer on dashboard
-  if (pathname?.startsWith("/dashboard")) {
+  // Suppress website footer on dashboard or admin pages
+  if (pathname?.startsWith("/dashboard") || pathname?.startsWith("/admin")) {
     return null;
   }
 

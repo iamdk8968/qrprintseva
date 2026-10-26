@@ -34,8 +34,8 @@ export const Navbar: React.FC = () => {
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
-  // Don't render website navbar on standalone dashboard pages
-  if (pathname?.startsWith("/dashboard")) {
+  // Don't render website navbar on standalone dashboard or admin pages
+  if (pathname?.startsWith("/dashboard") || pathname?.startsWith("/admin")) {
     return null;
   }
 
