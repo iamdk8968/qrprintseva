@@ -11,6 +11,8 @@ export interface ShopUser {
   email?: string;
   slug: string;
   address: string;
+  city?: string;
+  state?: string;
   upiId: string;
   bwRate: number;
   colorRate: number;
@@ -21,14 +23,17 @@ export interface ShopUser {
   connectedPc?: string | null;
   customLogo?: string;
   plan: "trial" | "monthly" | "yearly" | "lifetime";
+  role?: "owner" | "operator" | "founder";
+  counterName?: string;
   createdAt: string;
 }
 
 interface AuthContextType {
   user: ShopUser | null;
   isLoggedIn: boolean;
+  role: "owner" | "operator" | "founder";
   login: (identifier: string, pass: string) => Promise<{ success: boolean; error?: string }>;
-  register: (data: Omit<ShopUser, "id" | "createdAt">) => Promise<{ success: boolean; error?: string }>;
+  register: (data: Omit<ShopUser, "id" | "createdAt"> & { password?: string }) => Promise<{ success: boolean; error?: string }>;
   registerDemoAccount: (data: {
     ownerName: string;
     phone: string;
@@ -37,7 +42,7 @@ interface AuthContextType {
     email: string;
     printerName?: string;
   }) => Promise<{ shopId: string; password: string; shop: ShopUser }>;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateProfile: (updates: Partial<ShopUser>) => void;
   quickDemoLogin: () => void;
 }
@@ -50,15 +55,18 @@ const DEFAULT_SHOP: ShopUser = {
   email: "iamdhananjay68@gmail.com",
   slug: "dk-mobile-demo",
   address: "jangle ayodhya prasad, gorakhpur",
+  city: "Gorakhpur",
+  state: "Uttar Pradesh",
   upiId: "7388688968@okaxis",
   bwRate: 3,
   colorRate: 10,
   printerName: "HP LaserJet 1020",
   printerModel: "Epson L1350",
-  bwPrinter: "System Default Printer (auto)",
-  colorPrinter: "System Default Printer (auto)",
-  connectedPc: null,
+  bwPrinter: "HP LaserJet 1020 / M1005 (Auto-detect)",
+  colorPrinter: "Epson L3210 / L3150 Series (Auto-detect)",
+  connectedPc: "DESKTOP-PRINT-NODE",
   plan: "trial",
+  role: "owner",
   createdAt: "2026-01-15",
 };
 
@@ -68,71 +76,109 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<ShopUser | null>(null);
   const router = useRouter();
 
-  // Load user from localStorage on mount
+  // On mount: Check server session first, then fallback to local cache
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedUser = localStorage.getItem("smartprint_shop_user");
-      if (savedUser) {
-        try {
-          setUser(JSON.parse(savedUser));
-        } catch {
-          // fallback
+    let isMounted = true;
+
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isMounted) return;
+        if (data.authenticated && data.user) {
+          const profile: ShopUser = {
+            ...data.user,
+            role: data.role || "owner",
+            counterName: data.counterName,
+          };
+          setUser(profile);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("smartprint_shop_user", JSON.stringify(profile));
+          }
+        } else {
+          // If server returned unauthenticated, check local storage
+          if (typeof window !== "undefined") {
+            const savedUser = localStorage.getItem("smartprint_shop_user");
+            if (savedUser) {
+              try {
+                setUser(JSON.parse(savedUser));
+              } catch {
+                setUser(DEFAULT_SHOP);
+              }
+            } else {
+              setUser(DEFAULT_SHOP);
+              localStorage.setItem("smartprint_shop_user", JSON.stringify(DEFAULT_SHOP));
+            }
+          }
         }
-      } else {
-        // default to demo shop for immediate review
-        setUser(DEFAULT_SHOP);
-        localStorage.setItem("smartprint_shop_user", JSON.stringify(DEFAULT_SHOP));
-      }
-    }
+      })
+      .catch(() => {
+        if (typeof window !== "undefined") {
+          const savedUser = localStorage.getItem("smartprint_shop_user");
+          if (savedUser) {
+            try {
+              setUser(JSON.parse(savedUser));
+            } catch {
+              setUser(DEFAULT_SHOP);
+            }
+          } else {
+            setUser(DEFAULT_SHOP);
+          }
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const login = async (identifier: string, pass: string) => {
-    // Simulated credential check
-    const cleanId = identifier.trim().toLowerCase();
+    const cleanId = identifier.trim();
     const cleanPass = pass.trim();
 
     if (!cleanId || !cleanPass) {
       return { success: false, error: "कृपया शॉप आईडी / मोबाइल नंबर और पासवर्ड भरें।" };
     }
 
-    // Check saved users list or default shop
-    let matchedShop: ShopUser | null = null;
-    if (typeof window !== "undefined") {
-      const savedShops = localStorage.getItem("smartprint_registered_shops");
-      if (savedShops) {
-        try {
-          const list: ShopUser[] = JSON.parse(savedShops);
-          const found = list.find(
-            (s) =>
-              s.id.toLowerCase() === cleanId ||
-              s.phone.replace(/\D/g, "") === cleanId.replace(/\D/g, "") ||
-              s.email?.toLowerCase() === cleanId ||
-              s.slug.toLowerCase() === cleanId
-          );
-          if (found) matchedShop = found;
-        } catch {}
-      }
-    }
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: cleanId, password: cleanPass }),
+      });
 
-    if (!matchedShop) {
+      const data = await res.json();
+
+      if (res.ok && data.success && data.user) {
+        const profile: ShopUser = {
+          ...data.user,
+          role: data.session?.role || "owner",
+          counterName: data.session?.counterName,
+        };
+        setUser(profile);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("smartprint_shop_user", JSON.stringify(profile));
+        }
+        return { success: true };
+      }
+
+      return {
+        success: false,
+        error: data.error || "लॉगिन विफल रहा। कृपया शॉप आईडी या पासवर्ड जांचें।",
+      };
+    } catch (err) {
+      // Fallback for seed demo shop in local offline mode
       if (
-        cleanId === DEFAULT_SHOP.id.toLowerCase() ||
-        cleanId.includes("sharma") ||
+        cleanId.toLowerCase() === DEFAULT_SHOP.id.toLowerCase() ||
         cleanId === "7388688968"
       ) {
-        matchedShop = DEFAULT_SHOP;
+        setUser(DEFAULT_SHOP);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("smartprint_shop_user", JSON.stringify(DEFAULT_SHOP));
+        }
+        return { success: true };
       }
+      return { success: false, error: "सर्वर से संपर्क नहीं हो सका। कृपया पुनः प्रयास करें।" };
     }
-
-    if (!matchedShop) {
-      return { success: false, error: "यह शॉप आईडी या मोबाइल नंबर नहीं मिला। कृपया फ्री डेमो बनाएं।" };
-    }
-
-    setUser(matchedShop);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("smartprint_shop_user", JSON.stringify(matchedShop));
-    }
-    return { success: true };
   };
 
   const registerDemoAccount = async (data: {
@@ -143,6 +189,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email: string;
     printerName?: string;
   }) => {
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shopName: data.shopName,
+          ownerName: data.ownerName,
+          phone: data.phone,
+          email: data.email,
+          address: data.address,
+          password: data.phone, // Phone as default password for quick demo account
+          printerName: data.printerName,
+        }),
+      });
+
+      const resData = await res.json();
+      if (res.ok && resData.user) {
+        const newShop: ShopUser = resData.user;
+        setUser(newShop);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("smartprint_shop_user", JSON.stringify(newShop));
+        }
+        return {
+          shopId: newShop.id,
+          password: data.phone,
+          shop: newShop,
+        };
+      }
+    } catch {}
+
+    // Fallback client creation
     const hex = Math.random().toString(16).substring(2, 10).toUpperCase();
     const demoShopId = `DEMO_${hex}`;
     const cleanPhone = data.phone.replace(/\D/g, "");
@@ -166,17 +243,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       colorRate: 10,
       printerName: data.printerName || "System Default Printer (Auto-selected)",
       plan: "trial",
+      role: "owner",
       createdAt: new Date().toISOString(),
     };
 
     setUser(newShop);
-
     if (typeof window !== "undefined") {
       localStorage.setItem("smartprint_shop_user", JSON.stringify(newShop));
-      const existing = localStorage.getItem("smartprint_registered_shops");
-      const list: ShopUser[] = existing ? JSON.parse(existing) : [DEFAULT_SHOP];
-      list.unshift(newShop);
-      localStorage.setItem("smartprint_registered_shops", JSON.stringify(list));
     }
 
     return {
@@ -186,32 +259,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
-  const register = async (data: Omit<ShopUser, "id" | "createdAt">) => {
+  const register = async (data: Omit<ShopUser, "id" | "createdAt"> & { password?: string }) => {
     if (!data.shopName.trim() || !data.phone.trim()) {
       return { success: false, error: "दुकान का नाम और मोबाइल नंबर आवश्यक है।" };
     }
 
-    const newShop: ShopUser = {
-      ...data,
-      id: `SHOP-${Math.floor(1000 + Math.random() * 9000)}`,
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
 
-    setUser(newShop);
+      const resData = await res.json();
+      if (res.ok && resData.user) {
+        const newShop: ShopUser = resData.user;
+        setUser(newShop);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("smartprint_shop_user", JSON.stringify(newShop));
+        }
+        return { success: true };
+      }
 
-    if (typeof window !== "undefined") {
-      localStorage.setItem("smartprint_shop_user", JSON.stringify(newShop));
-      // Append to registered shops registry
-      const existing = localStorage.getItem("smartprint_registered_shops");
-      const list = existing ? JSON.parse(existing) : [DEFAULT_SHOP];
-      list.push(newShop);
-      localStorage.setItem("smartprint_registered_shops", JSON.stringify(list));
+      return {
+        success: false,
+        error: resData.error || "पंजीकरण विफल रहा। कृपया विवरण पुनः जांचें।",
+      };
+    } catch (err) {
+      // Local fallback
+      const newShop: ShopUser = {
+        ...data,
+        id: `SHOP-${Math.floor(1000 + Math.random() * 9000)}`,
+        role: "owner",
+        createdAt: new Date().toISOString(),
+      };
+      setUser(newShop);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("smartprint_shop_user", JSON.stringify(newShop));
+      }
+      return { success: true };
     }
-
-    return { success: true };
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
+
     setUser(null);
     if (typeof window !== "undefined") {
       localStorage.removeItem("smartprint_shop_user");
@@ -228,7 +322,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const quickDemoLogin = () => {
+  const quickDemoLogin = async () => {
+    // Attempt real server login as demo account
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: "DEMO_FE8F53D1", password: "7388688968" }),
+      });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        setUser(data.user);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("smartprint_shop_user", JSON.stringify(data.user));
+        }
+        router.push("/dashboard");
+        return;
+      }
+    } catch {}
+
     setUser(DEFAULT_SHOP);
     if (typeof window !== "undefined") {
       localStorage.setItem("smartprint_shop_user", JSON.stringify(DEFAULT_SHOP));
@@ -241,6 +353,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         isLoggedIn: !!user,
+        role: user?.role || "owner",
         login,
         register,
         registerDemoAccount,

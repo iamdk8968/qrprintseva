@@ -235,22 +235,56 @@ export default function ShopkeeperDashboard() {
     };
   }, [customerPortalUrl]);
 
-  // Live countdown ticker
+  // Real Queue Polling from server every 3 seconds
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev.seconds > 0) {
-          return { ...prev, seconds: prev.seconds - 1 };
-        } else if (prev.minutes > 0) {
-          return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
-        } else if (prev.hours > 0) {
-          return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
+    let prevOrderIds = new Set<string>();
+
+    const fetchQueue = async () => {
+      try {
+        const res = await fetch(`/api/orders?shopSlug=${shopSlug || shopId}`);
+        const data = await res.json();
+        if (data.orders && Array.isArray(data.orders)) {
+          // Check for newly arrived orders to chime
+          const hasNew = data.orders.some((o: any) => !prevOrderIds.has(o.id) && o.status === "queued");
+          if (hasNew && prevOrderIds.size > 0 && soundEnabled) {
+            playChime();
+          }
+          prevOrderIds = new Set(data.orders.map((o: any) => o.id));
+          setOrders(data.orders);
         }
-        return prev;
+      } catch {
+        // Fallback
+      }
+    };
+
+    fetchQueue();
+    const interval = setInterval(fetchQueue, 3000);
+    return () => clearInterval(interval);
+  }, [shopSlug, shopId, soundEnabled]);
+
+  // Real Order Status Transitions
+  const handleUpdateOrderStatus = async (
+    orderId: string,
+    status: "queued" | "printing" | "done" | "rejected",
+    paymentStatus?: "paid" | "cash_pending"
+  ) => {
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, paymentStatus }),
       });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+      const data = await res.json();
+      if (data.success && data.order) {
+        setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...data.order } : o)));
+        if (status === "printing") playChime();
+      }
+    } catch {
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status, ...(paymentStatus ? { paymentStatus } : {}) } : o))
+      );
+    }
+  };
 
   // Web Audio chime for print alerts
   const playChime = () => {
@@ -343,25 +377,46 @@ export default function ShopkeeperDashboard() {
     setTimeout(() => setSettingsSaved(false), 2500);
   };
 
-  // Disconnect PC action
-  const handleDisconnectPc = () => {
+  // Disconnect PC action (Syncs with server and agent)
+  const handleDisconnectPc = async () => {
+    try {
+      await fetch("/api/agent/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shopId, disconnect: true }),
+      });
+    } catch {}
     setConnectedPc(null);
     updateProfile({ connectedPc: null });
     setPcDisconnectConfirm(false);
     alert("Purana computer successfully disconnect kar diya gaya hai. Ab aap naye PC me Shop ID daal sakte hain.");
   };
 
-  // Change Password action
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  // Change Password action (Real Server Verification)
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPass || newPass.length < 6) {
       setPassUpdateMsg({ type: "error", text: "New password must be at least 6 characters." });
       return;
     }
-    setPassUpdateMsg({ type: "success", text: "Password updated successfully!" });
-    setCurrentPass("");
-    setNewPass("");
-    setTimeout(() => setPassUpdateMsg(null), 3000);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: currentPass, newPassword: newPass }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPassUpdateMsg({ type: "success", text: "Password updated successfully on server!" });
+        setCurrentPass("");
+        setNewPass("");
+      } else {
+        setPassUpdateMsg({ type: "error", text: data.error || "Failed to update password." });
+      }
+    } catch {
+      setPassUpdateMsg({ type: "error", text: "Network error updating password." });
+    }
+    setTimeout(() => setPassUpdateMsg(null), 3500);
   };
 
   // Save Pricing Settings
@@ -658,77 +713,59 @@ export default function ShopkeeperDashboard() {
               </div>
 
               {/* 3. Subscription Plan Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 
                 {/* Monthly */}
                 <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm text-center space-y-2 hover:shadow-md transition">
-                  <div className="text-xs font-bold text-slate-500">📅 Monthly Plan</div>
+                  <div className="text-xs font-bold text-slate-500">📅 Monthly Starter</div>
                   <div className="flex items-center justify-center gap-1.5">
-                    <span className="text-xs line-through text-slate-400">₹499</span>
-                    <span className="text-2xl font-black text-slate-900">₹299</span>
+                    <span className="text-xs line-through text-slate-400">₹299</span>
+                    <span className="text-2xl font-black text-slate-900">₹199</span>
                   </div>
                   <p className="text-[11px] text-slate-500 font-medium">Billed Monthly</p>
-                  <p className="text-[10px] text-slate-400">Standard Queue</p>
+                  <p className="text-[10px] text-slate-400">1 Computer &amp; Queue</p>
                   <button
                     type="button"
-                    onClick={() => handleSendWhatsAppSupport("Mujhe Monthly Plan (₹299) activate karna hai.")}
+                    onClick={() => handleSendWhatsAppSupport("Mujhe Monthly Plan (₹199) activate karna hai.")}
                     className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition"
                   >
                     Select Monthly
                   </button>
                 </div>
 
-                {/* Pro (POPULAR) */}
+                {/* Yearly (POPULAR) */}
                 <div className="p-5 rounded-2xl bg-white border-2 border-indigo-600 shadow-md text-center space-y-2 relative">
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-indigo-600 text-white text-[9px] font-black uppercase tracking-wider">
-                    POPULAR
+                    BEST VALUE
                   </span>
-                  <div className="text-xs font-bold text-indigo-700">💎 Pro Annual</div>
+                  <div className="text-xs font-bold text-indigo-700">💎 Yearly Business</div>
                   <div className="flex items-center justify-center gap-1.5">
-                    <span className="text-xs line-through text-slate-400">₹1199</span>
-                    <span className="text-2xl font-black text-indigo-700">₹899</span>
+                    <span className="text-xs line-through text-slate-400">₹999</span>
+                    <span className="text-2xl font-black text-indigo-700">₹599</span>
                   </div>
-                  <p className="text-[11px] text-slate-500 font-medium">Per Year (₹75/mo)</p>
-                  <p className="text-[10px] text-slate-400">Silent Auto-Print Unlocked</p>
+                  <p className="text-[11px] text-slate-500 font-medium">Full Year (Just ₹49/mo)</p>
+                  <p className="text-[10px] text-slate-400">Multi-Counter &amp; Silent Spooler</p>
                   <button
                     type="button"
-                    onClick={() => handleSendWhatsAppSupport("Mujhe Pro Annual Plan (₹899) activate karna hai.")}
+                    onClick={() => handleSendWhatsAppSupport("Mujhe Yearly Business Plan (₹599) activate karna hai.")}
                     className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-md shadow-indigo-600/30"
                   >
-                    Activate Pro
-                  </button>
-                </div>
-
-                {/* Premium */}
-                <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm text-center space-y-2 hover:shadow-md transition">
-                  <div className="text-xs font-bold text-slate-500">👑 Premium 2-Year</div>
-                  <div className="flex items-center justify-center gap-1.5">
-                    <span className="text-xs line-through text-slate-400">₹1499</span>
-                    <span className="text-2xl font-black text-slate-900">₹1099</span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 font-medium">2 Years Coverage</p>
-                  <p className="text-[10px] text-slate-400">VIP AnyDesk Support</p>
-                  <button
-                    type="button"
-                    onClick={() => handleSendWhatsAppSupport("Mujhe Premium 2-Year Plan (₹1099) activate karna hai.")}
-                    className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition"
-                  >
-                    Choose Premium
+                    Activate Yearly
                   </button>
                 </div>
 
                 {/* Lifetime */}
                 <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm text-center space-y-2 hover:shadow-md transition">
-                  <div className="text-xs font-bold text-slate-500">♾️ Lifetime License</div>
+                  <div className="text-xs font-bold text-slate-500">♾️ Lifetime Supreme</div>
                   <div className="flex items-center justify-center gap-1.5">
-                    <span className="text-xs line-through text-slate-400">₹2999</span>
-                    <span className="text-2xl font-black text-purple-700">₹1999</span>
+                    <span className="text-xs line-through text-slate-400">₹1999</span>
+                    <span className="text-2xl font-black text-purple-700">₹1,299</span>
                   </div>
                   <p className="text-[11px] text-slate-500 font-medium">One-Time Payment</p>
-                  <p className="text-[10px] text-slate-400">Never Pay Again</p>
+                  <p className="text-[10px] text-slate-400">Permanent License • VIP Helpdesk</p>
                   <button
                     type="button"
-                    onClick={() => handleSendWhatsAppSupport("Mujhe Lifetime License (₹1999) activate karna hai.")}
+                    onClick={() => handleSendWhatsAppSupport("Mujhe Lifetime Supreme License (₹1299) activate karna hai.")}
                     className="w-full py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition shadow-md shadow-purple-600/30"
                   >
                     Get Lifetime
@@ -1366,26 +1403,37 @@ export default function ShopkeeperDashboard() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                           order.status === "done"
                             ? "bg-emerald-100 text-emerald-800"
                             : order.status === "printing"
                             ? "bg-blue-100 text-blue-800 animate-pulse"
+                            : order.paymentStatus === "cash_pending"
+                            ? "bg-rose-100 text-rose-800"
                             : "bg-amber-100 text-amber-800"
                         }`}
                       >
-                        {order.status}
+                        {order.paymentStatus === "cash_pending" ? "Cash Pending" : order.status}
                       </span>
 
-                      {order.status === "queued" && (
+                      {/* Cash at Counter Approval Button */}
+                      {order.paymentStatus === "cash_pending" && (
                         <button
                           type="button"
-                          onClick={() => {
-                            playChime();
-                            setOrders(orders.map((o) => (o.id === order.id ? { ...o, status: "printing" } : o)));
-                          }}
+                          onClick={() => handleUpdateOrderStatus(order.id, "queued", "paid")}
+                          className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition flex items-center gap-1.5"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Approve Cash &amp; Print (₹{order.amount})</span>
+                        </button>
+                      )}
+
+                      {order.status === "queued" && order.paymentStatus !== "cash_pending" && (
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateOrderStatus(order.id, "printing")}
                           className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow transition flex items-center gap-1.5"
                         >
                           <Printer className="w-3.5 h-3.5" />
@@ -1396,13 +1444,37 @@ export default function ShopkeeperDashboard() {
                       {order.status === "printing" && (
                         <button
                           type="button"
-                          onClick={() => {
-                            setOrders(orders.map((o) => (o.id === order.id ? { ...o, status: "done" } : o)));
-                          }}
+                          onClick={() => handleUpdateOrderStatus(order.id, "done")}
                           className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition flex items-center gap-1.5"
                         >
                           <Check className="w-3.5 h-3.5" />
                           <span>Mark Done</span>
+                        </button>
+                      )}
+
+                      {order.status === "done" && (
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateOrderStatus(order.id, "queued")}
+                          className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition flex items-center gap-1"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          <span>Reprint</span>
+                        </button>
+                      )}
+
+                      {(order.status === "queued" || order.paymentStatus === "cash_pending") && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Reject order #${order.token}?`)) {
+                              handleUpdateOrderStatus(order.id, "rejected");
+                            }
+                          }}
+                          className="p-2 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 transition"
+                          title="Reject / Cancel Order"
+                        >
+                          <X className="w-4 h-4" />
                         </button>
                       )}
                     </div>

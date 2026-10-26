@@ -37,8 +37,23 @@ export default function CustomerPrintPage({
   const [bwRate, setBwRate] = useState(3);
   const [colorRate, setColorRate] = useState(10);
 
-  // Load shop settings from localStorage
+  // Load shop settings from server and localStorage
   useEffect(() => {
+    // 1. Fetch real rates and UPI from server
+    if (params.shopId) {
+      fetch(`/api/agent/sync?shopId=${params.shopId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.agentConfig) {
+            const cfg = data.agentConfig;
+            if (cfg.pricing?.bwRate) setBwRate(Number(cfg.pricing.bwRate));
+            if (cfg.pricing?.colorRate) setColorRate(Number(cfg.pricing.colorRate));
+            if (cfg.upiId) setShopUpiId(cfg.upiId);
+          }
+        })
+        .catch(() => {});
+    }
+
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem("smartprint_shop_user");
@@ -52,7 +67,7 @@ export default function CustomerPrintPage({
         // fallback
       }
     }
-  }, []);
+  }, [params.shopId]);
 
   // Form state
   const [rawFile, setRawFile] = useState<File | null>(null);
@@ -61,6 +76,8 @@ export default function CustomerPrintPage({
     size: "1.4 MB",
     pages: 2,
   });
+  const [pageRangeMode, setPageRangeMode] = useState<"all" | "custom">("all");
+  const [customRangeText, setCustomRangeText] = useState("");
   const [printType, setPrintType] = useState<"bw" | "color">("bw");
   const [copies, setCopies] = useState(1);
   const [sides, setSides] = useState<"single" | "double">("single");
@@ -78,9 +95,39 @@ export default function CustomerPrintPage({
   // Modal State for Dynamic Live UPI
   const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
 
+  // Helper to count pages in range like "1-3, 5"
+  const getSelectedPageCount = () => {
+    if (!file) return 1;
+    if (pageRangeMode === "all" || !customRangeText.trim()) return file.pages;
+
+    try {
+      const parts = customRangeText.split(",");
+      const selected = new Set<number>();
+      for (const part of parts) {
+        const trimmed = part.trim();
+        if (trimmed.includes("-")) {
+          const [start, end] = trimmed.split("-").map(Number);
+          if (!isNaN(start) && !isNaN(end)) {
+            for (let i = Math.max(1, start); i <= Math.min(file.pages, end); i++) {
+              selected.add(i);
+            }
+          }
+        } else {
+          const num = Number(trimmed);
+          if (!isNaN(num) && num >= 1 && num <= file.pages) {
+            selected.add(num);
+          }
+        }
+      }
+      return selected.size > 0 ? selected.size : file.pages;
+    } catch {
+      return file.pages;
+    }
+  };
+
   // Pricing calculations
   const pricePerPage = printType === "color" ? colorRate : bwRate;
-  const activePages = file ? file.pages : 1;
+  const activePages = getSelectedPageCount();
   const totalAmount = pricePerPage * activePages * copies;
 
   // DPDP Act 2023 Statutory Consent (Unticked by default)
@@ -120,6 +167,7 @@ export default function CustomerPrintPage({
         formData.append("shopId", params.shopId || "DEMO_FE8F53D1");
         formData.append("fileName", file.name);
         formData.append("pages", String(activePages));
+        formData.append("pageRange", pageRangeMode === "custom" ? customRangeText : "all");
         formData.append("copies", String(copies));
         formData.append("type", printType);
         formData.append("sides", sides);
@@ -143,6 +191,7 @@ export default function CustomerPrintPage({
             fileName: file.name,
             fileSize: file.size,
             pages: activePages,
+            pageRange: pageRangeMode === "custom" ? customRangeText : "all",
             copies,
             type: printType,
             sides,
@@ -414,6 +463,57 @@ export default function CustomerPrintPage({
                 </div>
               )}
             </div>
+
+            {/* Page Range Selection (All vs Specific pages) */}
+            {file && file.pages > 1 && (
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  {language === "hi" ? "पेज चयन (Page Range):" : "Page Range Selection:"}
+                </label>
+                <div className="grid grid-cols-2 gap-2 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPageRangeMode("all");
+                      setCustomRangeText("");
+                    }}
+                    className={`py-2 px-3 rounded-xl border text-center transition ${
+                      pageRangeMode === "all"
+                        ? "border-blue-600 bg-blue-50 text-blue-700 font-extrabold shadow-sm"
+                        : "border-slate-200 text-slate-600 bg-white"
+                    }`}
+                  >
+                    All Pages ({file.pages})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPageRangeMode("custom")}
+                    className={`py-2 px-3 rounded-xl border text-center transition ${
+                      pageRangeMode === "custom"
+                        ? "border-blue-600 bg-blue-50 text-blue-700 font-extrabold shadow-sm"
+                        : "border-slate-200 text-slate-600 bg-white"
+                    }`}
+                  >
+                    Custom Pages (e.g. 1-2)
+                  </button>
+                </div>
+
+                {pageRangeMode === "custom" && (
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                    <input
+                      type="text"
+                      placeholder="e.g. 1-3, 5 (comma separated)"
+                      value={customRangeText}
+                      onChange={(e) => setCustomRangeText(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs text-slate-900 bg-white font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-[10px] text-slate-500">
+                      Selected: <strong>{activePages}</strong> of {file.pages} pages
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Print Mode: Color vs B&W */}
             <div>

@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 
 export interface OrderItem {
   id: string;
@@ -12,6 +13,7 @@ export interface OrderItem {
   filePath?: string; // Local storage path on ephemeral disk
   fileType: "pdf" | "image" | "doc";
   pages: number;
+  pageRange?: string;
   copies: number;
   type: "bw" | "color";
   sides: "single" | "double";
@@ -21,6 +23,7 @@ export interface OrderItem {
   paymentStatus: "paid" | "cash_pending";
   utr?: string;
   status: "queued" | "printing" | "done" | "rejected";
+  downloadToken: string; // Ephemeral security token to prevent public document scraping
   time: string;
   createdAt: string;
   updatedAt: string;
@@ -32,12 +35,12 @@ class OrderStore {
     {
       id: "ord-101",
       token: 114,
-      shopSlug: "sharma-cyber-cafe",
-      shopId: "SHARMA-77",
+      shopSlug: "dk-mobile-demo",
+      shopId: "DEMO_FE8F53D1",
       fileName: "Govt_Exam_Admit_Card.pdf",
       fileSize: "1.2 MB",
       fileType: "pdf",
-      fileUrl: "/api/orders/download/ord-101",
+      fileUrl: "/api/orders/download/ord-101?token=seed_tok_101",
       pages: 1,
       copies: 2,
       type: "bw",
@@ -48,6 +51,7 @@ class OrderStore {
       paymentStatus: "paid",
       utr: "429104829103",
       status: "queued",
+      downloadToken: "seed_tok_101",
       time: "2 mins ago",
       createdAt: new Date(Date.now() - 120000).toISOString(),
       updatedAt: new Date().toISOString(),
@@ -55,12 +59,12 @@ class OrderStore {
     {
       id: "ord-102",
       token: 115,
-      shopSlug: "sharma-cyber-cafe",
-      shopId: "SHARMA-77",
+      shopSlug: "dk-mobile-demo",
+      shopId: "DEMO_FE8F53D1",
       fileName: "Aadhaar_PVC_Deskew.pdf",
       fileSize: "850 KB",
       fileType: "pdf",
-      fileUrl: "/api/orders/download/ord-102",
+      fileUrl: "/api/orders/download/ord-102?token=seed_tok_102",
       pages: 1,
       copies: 1,
       type: "color",
@@ -70,6 +74,7 @@ class OrderStore {
       paymentMethod: "cash",
       paymentStatus: "cash_pending",
       status: "queued",
+      downloadToken: "seed_tok_102",
       time: "Just now",
       createdAt: new Date(Date.now() - 30000).toISOString(),
       updatedAt: new Date().toISOString(),
@@ -77,12 +82,12 @@ class OrderStore {
     {
       id: "ord-103",
       token: 112,
-      shopSlug: "sharma-cyber-cafe",
-      shopId: "SHARMA-77",
+      shopSlug: "dk-mobile-demo",
+      shopId: "DEMO_FE8F53D1",
       fileName: "College_Project_Report.pdf",
       fileSize: "3.4 MB",
       fileType: "pdf",
-      fileUrl: "/api/orders/download/ord-103",
+      fileUrl: "/api/orders/download/ord-103?token=seed_tok_103",
       pages: 12,
       copies: 1,
       type: "bw",
@@ -93,6 +98,7 @@ class OrderStore {
       paymentStatus: "paid",
       utr: "429104829199",
       status: "done",
+      downloadToken: "seed_tok_103",
       time: "15 mins ago",
       createdAt: new Date(Date.now() - 900000).toISOString(),
       updatedAt: new Date().toISOString(),
@@ -116,11 +122,7 @@ class OrderStore {
     return this.orders.filter(
       (o) =>
         o.shopSlug.toLowerCase() === cleanSlug ||
-        o.shopId.toLowerCase() === cleanSlug ||
-        cleanSlug.includes("sharma") ||
-        cleanSlug.includes("dk-mobile") ||
-        cleanSlug === "demo-shop" ||
-        cleanSlug === "demo_fe8f53d1"
+        o.shopId.toLowerCase() === cleanSlug
     );
   }
 
@@ -137,6 +139,7 @@ class OrderStore {
     filePath?: string;
     fileType?: "pdf" | "image" | "doc";
     pages: number;
+    pageRange?: string;
     copies: number;
     type: "bw" | "color";
     sides?: "single" | "double";
@@ -149,7 +152,9 @@ class OrderStore {
     this.currentToken += 1;
     if (this.currentToken > 999) this.currentToken = 101;
 
-    const orderId = `ord-${Date.now()}`;
+    const orderId = `ord-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+    const downloadToken = crypto.randomBytes(16).toString("hex");
+
     const newOrder: OrderItem = {
       id: orderId,
       token: this.currentToken,
@@ -157,10 +162,11 @@ class OrderStore {
       shopId: data.shopId || data.shopSlug,
       fileName: data.fileName,
       fileSize: data.fileSize,
-      fileUrl: data.fileUrl || `/api/orders/download/${orderId}`,
+      fileUrl: `/api/orders/download/${orderId}?token=${downloadToken}`,
       filePath: data.filePath,
       fileType: data.fileType || "pdf",
       pages: data.pages,
+      pageRange: data.pageRange,
       copies: data.copies,
       type: data.type,
       sides: data.sides || "single",
@@ -172,6 +178,7 @@ class OrderStore {
         (data.paymentMethod === "cash" ? "cash_pending" : "paid"),
       utr: data.utr,
       status: "queued",
+      downloadToken,
       time: "Just now",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

@@ -35,59 +35,144 @@ import {
   MoreVertical,
   Check,
   Zap,
+  Download,
+  Activity,
+  HardDrive,
+  Cpu,
+  Layers,
+  FileText,
+  X,
 } from "lucide-react";
+
+interface AdminMetrics {
+  totalShops: number;
+  activeShops: number;
+  trialShops: number;
+  suspendedShops: number;
+  expiredShops: number;
+  planCounts: {
+    trial: number;
+    monthly: number;
+    yearly: number;
+    lifetime: number;
+  };
+  agentsOnline: number;
+  totalOrders: number;
+  completedOrders: number;
+  pendingOrders: number;
+  failedOrders: number;
+  totalPages: number;
+  saasRevenue: number;
+  printRevenue: number;
+  grossCollections: number;
+  refunds: number;
+  netCollections: number;
+  mrr: number;
+  conversionRate: number;
+  serverTime: string;
+}
 
 interface ManagedShop {
   id: string;
   shopName: string;
   ownerName: string;
   phone: string;
+  email?: string;
   city: string;
   state: string;
   plan: "trial" | "monthly" | "yearly" | "lifetime";
-  status: "active" | "trial" | "expired" | "blocked";
-  printsCount: number;
-  revenueGenerated: number;
-  registeredDate: string;
-  lastLogin: string;
-  expiryDays: number;
+  status: "active" | "trial" | "suspended" | "expired";
+  trialEndsAt: string;
+  planExpiresAt: string;
+  trialExtensionReason?: string;
+  counterLimit: number;
+  bwRate: number;
+  colorRate: number;
+  connectedPc?: string | null;
   agentConnected: boolean;
+  agentLastHeartbeat?: string;
+  stats: {
+    totalOrders: number;
+    totalPages: number;
+    revenueGenerated: number;
+    completedOrders: number;
+    failedOrders: number;
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
-interface SaleTransaction {
-  id: string;
-  shopName: string;
-  ownerName: string;
-  plan: string;
-  amount: number;
-  utr: string;
-  date: string;
-  status: "verified" | "pending";
+interface SystemDiagnostics {
+  status: string;
+  uptimeSeconds: number;
+  nodeVersion: string;
+  platform: string;
+  serverMemory: {
+    rssMb: number;
+    heapUsedMb: number;
+    heapTotalMb: number;
+  };
+  ephemeralStorage: {
+    path: string;
+    activeFiles: number;
+    totalMb: string;
+    purgePolicy: string;
+  };
+  agentHealth: {
+    online: number;
+    offline: number;
+  };
+  queueBacklog: {
+    pendingCount: number;
+    totalAllTime: number;
+  };
+  securityStatus: {
+    tlsEnforced: boolean;
+    hstsActive: boolean;
+    ephemeralRetention: string;
+    failedLoginLockouts: number;
+  };
+  timestamp: string;
 }
 
 export default function SuperAdminMasterDashboard() {
   const router = useRouter();
   const { language } = useLanguage();
 
-  // Authentication: Master Access PIN (Default: 7388 or 8968)
+  // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
 
   // Master Dashboard Active Tab
   const [activeTab, setActiveTab] = useState<
-    "overview" | "shops" | "sales" | "pricing" | "popup" | "geo" | "broadcast"
+    "overview" | "shops" | "sales" | "system" | "pricing" | "popup" | "broadcast"
   >("overview");
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterPlan, setFilterPlan] = useState<"all" | "trial" | "yearly" | "lifetime" | "expired">("all");
+  const [filterPlan, setFilterPlan] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
 
-  // Broadcast Message State
-  const [broadcastText, setBroadcastText] = useState("");
-  const [broadcastSent, setBroadcastSent] = useState(false);
+  // Real Data States
+  const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
+  const [shops, setShops] = useState<ManagedShop[]>([]);
+  const [systemDiag, setSystemDiag] = useState<SystemDiagnostics | null>(null);
+  const [loadingData, setLoadingData] = useState(false);
 
-  // Quick Action Notification
+  // Modals for Administrative Actions
+  const [selectedShop, setSelectedShop] = useState<ManagedShop | null>(null);
+  const [actionModal, setActionModal] = useState<
+    "extend_trial" | "change_plan" | "reset_password" | "details" | null
+  >(null);
+  const [extendDays, setExtendDays] = useState("7");
+  const [extendReason, setExtendReason] = useState("Cyber cafe operator verification extension");
+  const [newPlanSelection, setNewPlanSelection] = useState<"trial" | "monthly" | "yearly" | "lifetime">("yearly");
+  const [tempPassword, setTempPassword] = useState("qrp123456");
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Notification Toast
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   // Dynamic Pricing Controls
@@ -95,7 +180,7 @@ export default function SuperAdminMasterDashboard() {
   const [priceYearly, setPriceYearly] = useState("599");
   const [priceLifetime, setPriceLifetime] = useState("1299");
 
-  // Special Offer / Festive Deal Controls
+  // Special Offer Controls
   const [offerEnabled, setOfferEnabled] = useState(true);
   const [offerTitle, setOfferTitle] = useState("⚡ Special Launch Offer (सीमित समय ऑफर)");
   const [offerBadge, setOfferBadge] = useState("FLAT ₹300 OFF");
@@ -112,234 +197,28 @@ export default function SuperAdminMasterDashboard() {
   const [popupBtnText, setPopupBtnText] = useState("फ्री डेमो टेस्ट करें ›");
   const [popupBtnLink, setPopupBtnLink] = useState("/#pricing");
 
-  // Seed / Live Shop Data
-  const [shops, setShops] = useState<ManagedShop[]>([
-    {
-      id: "DEMO_FE8F53D1",
-      shopName: "Sharma Cyber Cafe & Jan Seva Kendra",
-      ownerName: "Dhananjay Sharma",
-      phone: "7388688968",
-      city: "Gorakhpur",
-      state: "Uttar Pradesh",
-      plan: "trial",
-      status: "trial",
-      printsCount: 42,
-      revenueGenerated: 210,
-      registeredDate: "Today, 10:15 AM",
-      lastLogin: "2 mins ago (Win Agent v3.5)",
-      expiryDays: 1,
-      agentConnected: true,
-    },
-    {
-      id: "SHOP-1024",
-      shopName: "Maa Digital CSC & Cyber Hub",
-      ownerName: "Rakesh Verma",
-      phone: "9835012345",
-      city: "Patna",
-      state: "Bihar",
-      plan: "yearly",
-      status: "active",
-      printsCount: 1420,
-      revenueGenerated: 6840,
-      registeredDate: "12 Oct 2026",
-      lastLogin: "5 mins ago (Chrome PC)",
-      expiryDays: 312,
-      agentConnected: true,
-    },
-    {
-      id: "SHOP-2048",
-      shopName: "Rathore Xerox & Photo Studio",
-      ownerName: "Vikram Rathore",
-      phone: "9414098765",
-      city: "Jaipur",
-      state: "Rajasthan",
-      plan: "lifetime",
-      status: "active",
-      printsCount: 3890,
-      revenueGenerated: 18200,
-      registeredDate: "28 Sep 2026",
-      lastLogin: "11 mins ago (Win Agent v3.5)",
-      expiryDays: 9999,
-      agentConnected: true,
-    },
-    {
-      id: "SHOP-3091",
-      shopName: "Gupta Internet & Photocopy Point",
-      ownerName: "Sunil Gupta",
-      phone: "9120054321",
-      city: "Lucknow",
-      state: "Uttar Pradesh",
-      plan: "yearly",
-      status: "active",
-      printsCount: 840,
-      revenueGenerated: 4100,
-      registeredDate: "05 Oct 2026",
-      lastLogin: "18 mins ago (Edge PC)",
-      expiryDays: 285,
-      agentConnected: true,
-    },
-    {
-      id: "DEMO_B94101A",
-      shopName: "Kalyan Online Digital Seva",
-      ownerName: "Kalyan Mishra",
-      phone: "8765432109",
-      city: "Varanasi",
-      state: "Uttar Pradesh",
-      plan: "trial",
-      status: "trial",
-      printsCount: 18,
-      revenueGenerated: 90,
-      registeredDate: "Yesterday, 04:30 PM",
-      lastLogin: "25 mins ago (Mobile Web)",
-      expiryDays: 1,
-      agentConnected: false,
-    },
-    {
-      id: "SHOP-4402",
-      shopName: "Shree Ram Photocopy & Form Center",
-      ownerName: "Amitabh Yadav",
-      phone: "9811022334",
-      city: "Delhi NCR",
-      state: "Delhi",
-      plan: "yearly",
-      status: "active",
-      printsCount: 2210,
-      revenueGenerated: 11200,
-      registeredDate: "18 Aug 2026",
-      lastLogin: "34 mins ago (Win Agent v3.5)",
-      expiryDays: 240,
-      agentConnected: true,
-    },
-    {
-      id: "SHOP-5519",
-      shopName: "Patel Cyber & Stationery",
-      ownerName: "Bhavin Patel",
-      phone: "9909011223",
-      city: "Ahmedabad",
-      state: "Gujarat",
-      plan: "lifetime",
-      status: "active",
-      printsCount: 4120,
-      revenueGenerated: 21400,
-      registeredDate: "01 Sep 2026",
-      lastLogin: "42 mins ago (Win Agent v3.5)",
-      expiryDays: 9999,
-      agentConnected: true,
-    },
-    {
-      id: "DEMO_C11904E",
-      shopName: "Birsa Cyber Seva",
-      ownerName: "Sanjay Soren",
-      phone: "9431088776",
-      city: "Ranchi",
-      state: "Jharkhand",
-      plan: "trial",
-      status: "expired",
-      printsCount: 29,
-      revenueGenerated: 145,
-      registeredDate: "20 Oct 2026",
-      lastLogin: "2 days ago",
-      expiryDays: 0,
-      agentConnected: false,
-    },
-  ]);
+  // Broadcast Message State
+  const [broadcastText, setBroadcastText] = useState("");
+  const [broadcastSent, setBroadcastSent] = useState(false);
 
-  // Recent Sales Transactions
-  const [sales] = useState<SaleTransaction[]>([
-    {
-      id: "TXN-9021",
-      shopName: "Rathore Xerox & Photo Studio",
-      ownerName: "Vikram Rathore",
-      plan: "Lifetime Supreme (₹1,299)",
-      amount: 1299,
-      utr: "429104829103",
-      date: "Today, 02:45 PM",
-      status: "verified",
-    },
-    {
-      id: "TXN-9020",
-      shopName: "Maa Digital CSC & Cyber Hub",
-      ownerName: "Rakesh Verma",
-      plan: "Yearly Business (₹599)",
-      amount: 599,
-      utr: "429088192044",
-      date: "Today, 11:20 AM",
-      status: "verified",
-    },
-    {
-      id: "TXN-9019",
-      shopName: "Shree Ram Photocopy",
-      ownerName: "Amitabh Yadav",
-      plan: "Yearly Business (₹599)",
-      amount: 599,
-      utr: "429011928374",
-      date: "Yesterday",
-      status: "verified",
-    },
-    {
-      id: "TXN-9018",
-      shopName: "Patel Cyber & Stationery",
-      ownerName: "Bhavin Patel",
-      plan: "Lifetime Supreme (₹1,299)",
-      amount: 1299,
-      utr: "428994829101",
-      date: "23 Oct 2026",
-      status: "verified",
-    },
-    {
-      id: "TXN-9017",
-      shopName: "Gupta Internet Point",
-      ownerName: "Sunil Gupta",
-      plan: "Yearly Business (₹599)",
-      amount: 599,
-      utr: "428810293847",
-      date: "21 Oct 2026",
-      status: "verified",
-    },
-  ]);
+  const triggerNotice = (msg: string) => {
+    setActionNotice(msg);
+    setTimeout(() => setActionNotice(null), 3500);
+  };
 
-  // Check Master Session on load
+  // Check existing session on mount
   useEffect(() => {
-    const session = sessionStorage.getItem("qrprintseva_master_auth");
-    if (session === "granted") {
-      setIsAuthenticated(true);
-    }
-
-    // Merge any real locally registered shops from AuthContext
-    try {
-      const localShopsRaw = localStorage.getItem("smartprint_registered_shops");
-      if (localShopsRaw) {
-        const localList = JSON.parse(localShopsRaw);
-        if (Array.isArray(localList)) {
-          setShops((prev) => {
-            const ids = new Set(prev.map((s) => s.id));
-            const fresh = localList
-              .filter((ls) => !ids.has(ls.id))
-              .map((ls) => ({
-                id: ls.id,
-                shopName: ls.shopName,
-                ownerName: ls.ownerName || "Shop Owner",
-                phone: ls.phone,
-                city: ls.address?.split(",")[0] || "Counter",
-                state: "India",
-                plan: (ls.plan as any) || "trial",
-                status: "trial" as const,
-                printsCount: 15,
-                revenueGenerated: 75,
-                registeredDate: "Just now",
-                lastLogin: "Active Now",
-                expiryDays: 1,
-                agentConnected: true,
-              }));
-            return [...fresh, ...prev];
-          });
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.authenticated && data.role === "founder") {
+          setIsAuthenticated(true);
+          loadDashboardData();
         }
-      }
-    } catch (e) {
-      // Pass
-    }
+      })
+      .catch(() => {});
 
-    // Fetch Global Platform Config (Pricing, Offers, Popup)
+    // Fetch Global Platform Config
     fetch("/api/admin/config")
       .then((res) => res.json())
       .then((data) => {
@@ -372,6 +251,101 @@ export default function SuperAdminMasterDashboard() {
       .catch(() => {});
   }, []);
 
+  const loadDashboardData = async () => {
+    setLoadingData(true);
+    try {
+      // 1. Fetch Metrics
+      const mRes = await fetch("/api/admin/metrics");
+      const mData = await mRes.json();
+      if (mData.success && mData.metrics) {
+        setMetrics(mData.metrics);
+      }
+
+      // 2. Fetch Shops
+      const sRes = await fetch("/api/admin/shops?limit=100");
+      const sData = await sRes.json();
+      if (sData.success && sData.shops) {
+        setShops(sData.shops);
+      }
+
+      // 3. Fetch System Diagnostics
+      const sysRes = await fetch("/api/admin/system");
+      const sysData = await sysRes.json();
+      if (sysData.success && sysData.system) {
+        setSystemDiag(sysData.system);
+      }
+    } catch (err) {
+      triggerNotice("Error fetching real administrative data: " + String(err));
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const handleMasterLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+    setLoginLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/admin-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ passcode }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setIsAuthenticated(true);
+        triggerNotice("Founder Master Access Granted! 👑");
+        loadDashboardData();
+      } else {
+        setLoginError(data.error || "Invalid master security credential. Access denied.");
+      }
+    } catch {
+      setLoginError("Could not reach server. Please check internet connection.");
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleMasterLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
+    setIsAuthenticated(false);
+    router.push("/");
+  };
+
+  // Administrative Action Dispatcher
+  const executeShopAction = async (
+    shopId: string,
+    action: string,
+    payload: Record<string, any> = {}
+  ) => {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/admin/shops/${shopId}/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...payload }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        triggerNotice(data.message || "Action executed successfully!");
+        setActionModal(null);
+        setSelectedShop(null);
+        loadDashboardData();
+      } else {
+        triggerNotice("Action failed: " + (data.error || "Unknown error"));
+      }
+    } catch (err) {
+      triggerNotice("Network error executing action: " + String(err));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleSavePricingOffer = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -392,13 +366,18 @@ export default function SuperAdminMasterDashboard() {
         },
       };
 
-      await fetch("/api/admin/config", {
+      const res = await fetch("/api/admin/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      const data = await res.json();
 
-      triggerNotice("Pricing and Offers updated live across platform! ✓");
+      if (res.ok) {
+        triggerNotice("Pricing and Offers updated live across platform! ✓");
+      } else {
+        triggerNotice("Failed: " + (data.error || "Permission denied"));
+      }
     } catch (err) {
       triggerNotice("Failed to save pricing: " + String(err));
     }
@@ -415,168 +394,79 @@ export default function SuperAdminMasterDashboard() {
           message: popupMessage,
           btnText: popupBtnText,
           btnLink: popupBtnLink,
-          showOnLanding: true,
+          showOnLanding: popupEnabled,
         },
       };
 
-      await fetch("/api/admin/config", {
+      const res = await fetch("/api/admin/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      triggerNotice(
-        popupEnabled
-          ? "Promo Popup published live for all visitors! 🚀"
-          : "Promo Popup turned OFF successfully! ✓"
-      );
+      if (res.ok) {
+        triggerNotice(
+          popupEnabled
+            ? "Promo Popup published live for all visitors! 🚀"
+            : "Promo Popup turned OFF successfully! ✓"
+        );
+      }
     } catch (err) {
       triggerNotice("Failed to update popup: " + String(err));
     }
   };
 
-  const handleMasterLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError("");
-
-    // Authorized Master Passcodes: 7388 or 8968 or admin123
-    const validCodes = ["7388", "8968", "admin", "admin123", "owner"];
-    if (validCodes.includes(passcode.trim())) {
-      setIsAuthenticated(true);
-      sessionStorage.setItem("qrprintseva_master_auth", "granted");
-    } else {
-      setLoginError(
-        language === "hi"
-          ? "गलत मास्टर पिन! कृपया 7388 या 8968 दर्ज करें।"
-          : "Invalid Master Passcode! Default PIN is 7388 or 8968."
-      );
-    }
-  };
-
-  const handleMasterLogout = () => {
-    setIsAuthenticated(false);
-    sessionStorage.removeItem("qrprintseva_master_auth");
-  };
-
-  const triggerNotice = (msg: string) => {
-    setActionNotice(msg);
-    setTimeout(() => setActionNotice(null), 3000);
-  };
-
-  // 1-Click Upgrade Shop Plan
-  const handleUpgradePlan = (shopId: string, newPlan: "yearly" | "lifetime") => {
-    setShops((prev) =>
-      prev.map((s) =>
-        s.id === shopId
-          ? {
-              ...s,
-              plan: newPlan,
-              status: "active",
-              expiryDays: newPlan === "lifetime" ? 9999 : 365,
-            }
-          : s
-      )
-    );
-    triggerNotice(`Shop ${shopId} upgraded to ${newPlan.toUpperCase()} Plan! ✓`);
-  };
-
-  // 1-Click Extend Demo by 24 Hours
-  const handleExtendDemo = (shopId: string) => {
-    setShops((prev) =>
-      prev.map((s) =>
-        s.id === shopId
-          ? {
-              ...s,
-              expiryDays: s.expiryDays + 1,
-              status: "trial",
-            }
-          : s
-      )
-    );
-    triggerNotice(`Demo extended by +24 hours for ${shopId}! ✓`);
-  };
-
-  // Toggle Shop Block/Ban
-  const handleToggleBlock = (shopId: string) => {
-    setShops((prev) =>
-      prev.map((s) => {
-        if (s.id === shopId) {
-          const nextStatus = s.status === "blocked" ? "active" : "blocked";
-          return { ...s, status: nextStatus };
-        }
-        return s;
-      })
-    );
-    triggerNotice(`Shop ${shopId} status updated! ✓`);
-  };
-
-  // Send Global Broadcast
   const handleSendBroadcast = (e: React.FormEvent) => {
     e.preventDefault();
     if (!broadcastText.trim()) return;
     setBroadcastSent(true);
-    triggerNotice("Global notification pushed to all shopkeeper dashboards! 📢");
+    triggerNotice("Global notification spooled for all shopkeeper dashboards! 📢");
     setTimeout(() => {
       setBroadcastSent(false);
       setBroadcastText("");
-    }, 4000);
+    }, 2000);
   };
 
   // Filtered Shops List
-  const filteredShops = shops.filter((s) => {
-    const q = searchQuery.toLowerCase();
+  const filteredShops = shops.filter((shop) => {
     const matchesSearch =
-      s.shopName.toLowerCase().includes(q) ||
-      s.ownerName.toLowerCase().includes(q) ||
-      s.phone.includes(q) ||
-      s.city.toLowerCase().includes(q) ||
-      s.id.toLowerCase().includes(q);
+      shop.shopName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      shop.ownerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      shop.phone.includes(searchQuery) ||
+      shop.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      shop.city.toLowerCase().includes(searchQuery.toLowerCase());
 
-    if (!matchesSearch) return false;
-    if (filterPlan === "all") return true;
-    if (filterPlan === "trial") return s.plan === "trial" && s.status !== "expired";
-    if (filterPlan === "yearly") return s.plan === "yearly";
-    if (filterPlan === "lifetime") return s.plan === "lifetime";
-    if (filterPlan === "expired") return s.status === "expired";
-    return true;
+    const matchesPlan = filterPlan === "all" || shop.plan === filterPlan;
+    const matchesStatus = filterStatus === "all" || shop.status === filterStatus;
+
+    return matchesSearch && matchesPlan && matchesStatus;
   });
 
-  // Calculate High-Level Metrics
-  const totalShops = shops.length;
-  const activeDemos = shops.filter((s) => s.plan === "trial" && s.status !== "expired").length;
-  const paidShops = shops.filter((s) => s.plan === "yearly" || s.plan === "lifetime").length;
-  const totalRevenue = sales.reduce((acc, curr) => acc + curr.amount, 0);
-  const totalCustomerPrints = shops.reduce((acc, curr) => acc + curr.printsCount, 0);
-
   // ─────────────────────────────────────────────────────────────
-  // 1. MASTER LOCK SCREEN (Confidential Access)
+  // 1. SECURE MASTER LOGIN SCREEN (NO HARDCODED PIN / NO 1-CLICK BYPASS)
   // ─────────────────────────────────────────────────────────────
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-slate-100 select-none">
-        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-7 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden">
-          {/* Subtle Glow */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4 selection:bg-amber-500 selection:text-slate-950">
+        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
           <div className="text-center space-y-2">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 mx-auto flex items-center justify-center text-slate-950 shadow-lg shadow-amber-500/25">
-              <Crown className="w-7 h-7" />
+            <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto shadow-inner">
+              <Crown className="w-8 h-8" />
             </div>
-            <div className="inline-block px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-black uppercase tracking-widest">
-              Founder &amp; Super Admin
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-[11px] font-black uppercase tracking-wider border border-amber-500/20">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Founder &amp; Super Admin Portal</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              Master Control Portal
+              Master Control Center
             </h1>
             <p className="text-xs text-slate-400">
-              {language === "hi"
-                ? "यह डैशबोर्ड केवल QR Print Seva के संस्थापक (Owner) के लिए है।"
-                : "Strictly restricted to QR Print Seva founder & master operators."}
+              Restricted area for SaaS owner and platform administrators. Server-side cryptographically verified.
             </p>
           </div>
 
           {loginError && (
-            <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold text-center flex items-center justify-center gap-2">
+            <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
               <span>{loginError}</span>
             </div>
@@ -585,13 +475,13 @@ export default function SuperAdminMasterDashboard() {
           <form onSubmit={handleMasterLogin} className="space-y-4 text-xs">
             <div>
               <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                Master Passcode / PIN:
+                Master Security Passcode / Key:
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
                 <input
                   type="password"
-                  placeholder="Enter 4-digit PIN (e.g. 7388)"
+                  placeholder="Enter Founder Master Passcode"
                   value={passcode}
                   onChange={(e) => setPasscode(e.target.value)}
                   className="w-full pl-10 pr-3 py-3 rounded-xl bg-slate-950 border border-slate-700 font-mono font-bold text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-slate-600"
@@ -603,26 +493,12 @@ export default function SuperAdminMasterDashboard() {
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/20 transition active:scale-95 flex items-center justify-center gap-2"
+              disabled={loginLoading}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/20 transition active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <Unlock className="w-4 h-4" />
-              <span>Access Master Dashboard ›</span>
+              <span>{loginLoading ? "Verifying Credentials..." : "Access Master Dashboard ›"}</span>
             </button>
-
-            {/* Quick 1-Click Unlock for Owner */}
-            <div className="pt-2 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setPasscode("7388");
-                  setIsAuthenticated(true);
-                  sessionStorage.setItem("qrprintseva_master_auth", "granted");
-                }}
-                className="text-[11px] text-amber-400/80 hover:text-amber-300 font-bold underline"
-              >
-                ⚡ 1-Click Founder Unlock (PIN: 7388)
-              </button>
-            </div>
           </form>
 
           <div className="pt-2 border-t border-slate-800 text-center">
@@ -683,8 +559,8 @@ export default function SuperAdminMasterDashboard() {
               </div>
             </div>
 
-            {/* Quick Navigation Tabs */}
-            <div className="hidden md:flex items-center gap-1.5 p-1 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-slate-400">
+            {/* Navigation Tabs */}
+            <div className="hidden lg:flex items-center gap-1.5 p-1 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-slate-400">
               <button
                 onClick={() => setActiveTab("overview")}
                 className={`px-3 py-1.5 rounded-lg transition ${
@@ -707,7 +583,15 @@ export default function SuperAdminMasterDashboard() {
                   activeTab === "sales" ? "bg-amber-500 text-slate-950 font-black shadow" : "hover:text-white"
                 }`}
               >
-                Sales (₹{totalRevenue.toLocaleString("en-IN")})
+                Revenue &amp; Subscriptions
+              </button>
+              <button
+                onClick={() => setActiveTab("system")}
+                className={`px-3 py-1.5 rounded-lg transition ${
+                  activeTab === "system" ? "bg-amber-500 text-slate-950 font-black shadow" : "hover:text-white"
+                }`}
+              >
+                System &amp; Security
               </button>
               <button
                 onClick={() => setActiveTab("pricing")}
@@ -726,14 +610,6 @@ export default function SuperAdminMasterDashboard() {
                 Promo Popup 🎯
               </button>
               <button
-                onClick={() => setActiveTab("geo")}
-                className={`px-3 py-1.5 rounded-lg transition ${
-                  activeTab === "geo" ? "bg-amber-500 text-slate-950 font-black shadow" : "hover:text-white"
-                }`}
-              >
-                Live Geo Locations
-              </button>
-              <button
                 onClick={() => setActiveTab("broadcast")}
                 className={`px-3 py-1.5 rounded-lg transition ${
                   activeTab === "broadcast" ? "bg-amber-500 text-slate-950 font-black shadow" : "hover:text-white"
@@ -743,25 +619,32 @@ export default function SuperAdminMasterDashboard() {
               </button>
             </div>
 
-            {/* Right Tools: View Public Site + Logout */}
+            {/* Right Tools: Refresh, Export, Logout */}
             <div className="flex items-center gap-2">
-              <Link
-                href="/dashboard"
-                target="_blank"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition border border-slate-700"
+              <button
+                onClick={loadDashboardData}
+                disabled={loadingData}
+                title="Refresh Real Data"
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
               >
-                <Eye className="w-3.5 h-3.5 text-blue-400" />
-                <span>Shopkeeper View</span>
-              </Link>
+                <RefreshCw className={`w-4 h-4 ${loadingData ? "animate-spin text-amber-400" : ""}`} />
+              </button>
+
+              <a
+                href="/api/admin/export?type=shops"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 text-xs font-bold transition"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export CSV</span>
+              </a>
 
               <button
                 onClick={handleMasterLogout}
-                className="px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-bold transition border border-rose-500/30"
+                className="px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 text-xs font-bold transition"
               >
-                Lock Master
+                Logout
               </button>
             </div>
-
           </div>
         </div>
       </header>
@@ -769,787 +652,890 @@ export default function SuperAdminMasterDashboard() {
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
         
-        {/* 1. TOP METRICS OVERVIEW (KPI CARDS) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Revenue */}
-          <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-md space-y-1 relative overflow-hidden">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
-              <span>Platform Sales</span>
-              <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
-                <DollarSign className="w-4 h-4" />
-              </span>
-            </div>
-            <div className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono">
-              ₹{totalRevenue.toLocaleString("en-IN")}
-            </div>
-            <p className="text-[10px] text-slate-500 font-medium">
-              100% Direct UPI Subscription Sales
-            </p>
-          </div>
+        {/* ─────────────────────────────────────────────────────────────
+            TAB 1: REAL METRICS OVERVIEW
+        ───────────────────────────────────────────────────────────── */}
+        {activeTab === "overview" && (
+          <div className="space-y-8 animate-in fade-in duration-200">
+            {/* Header info */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/40 border border-slate-800">
+              <div>
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block mb-1">
+                  Database-Backed SaaS Pulse
+                </span>
+                <h2 className="text-2xl font-black text-white">
+                  Real-Time Business Performance
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Live metrics aggregated from persistent shop profiles, active print queues, and subscription licences.
+                </p>
+              </div>
 
-          {/* Card 2: Total Shops */}
-          <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-md space-y-1 relative overflow-hidden">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
-              <span>Total Cyber Cafes</span>
-              <span className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
-                <Store className="w-4 h-4" />
-              </span>
-            </div>
-            <div className="text-2xl sm:text-3xl font-black text-white font-mono">
-              {totalShops}
-            </div>
-            <p className="text-[10px] text-slate-500 font-medium">
-              {paidShops} Paid Pro • {activeDemos} Free Demos
-            </p>
-          </div>
-
-          {/* Card 3: Total Customer Prints */}
-          <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-md space-y-1 relative overflow-hidden">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
-              <span>Total Customer Prints</span>
-              <span className="p-1.5 rounded-lg bg-sky-500/10 text-sky-400">
-                <Printer className="w-4 h-4" />
-              </span>
-            </div>
-            <div className="text-2xl sm:text-3xl font-black text-sky-400 font-mono">
-              {totalCustomerPrints.toLocaleString("en-IN")}
-            </div>
-            <p className="text-[10px] text-slate-500 font-medium">
-              Processed silently across shop agents
-            </p>
-          </div>
-
-          {/* Card 4: Active Demos */}
-          <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-md space-y-1 relative overflow-hidden">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
-              <span>Active Free Demos</span>
-              <span className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400">
-                <Clock className="w-4 h-4" />
-              </span>
-            </div>
-            <div className="text-2xl sm:text-3xl font-black text-rose-400 font-mono">
-              {activeDemos}
-            </div>
-            <p className="text-[10px] text-slate-500 font-medium">
-              24-Hour Trial in Progress
-            </p>
-          </div>
-        </div>
-
-        {/* 2. LIVE GEOGRAPHIC FEED: "काउंस कहाँ से लॉगिन है" */}
-        {(activeTab === "overview" || activeTab === "geo") && (
-          <div className="bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
-                  <MapPin className="w-4 h-4" />
+              <div className="flex items-center gap-3">
+                <div className="px-4 py-2 rounded-2xl bg-slate-950 border border-slate-800 text-center">
+                  <span className="block text-[10px] text-slate-400 font-bold uppercase">Agents Online</span>
+                  <span className="text-lg font-black text-emerald-400">
+                    {metrics?.agentsOnline ?? 0}
+                  </span>
                 </div>
-                <div>
-                  <h3 className="font-black text-base text-white">
-                    Live Shop Activity &amp; Geographic Locations (काउंस कहाँ से लॉगिन है)
-                  </h3>
-                  <span className="text-xs text-slate-400">
-                    Real-time login status, devices, and cities across India
+                <div className="px-4 py-2 rounded-2xl bg-slate-950 border border-slate-800 text-center">
+                  <span className="block text-[10px] text-slate-400 font-bold uppercase">Paid Conversion</span>
+                  <span className="text-lg font-black text-amber-400">
+                    {metrics?.conversionRate ?? 0}%
                   </span>
                 </div>
               </div>
-
-              <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>Active Pulse: 8 Hubs Streaming</span>
-              </span>
             </div>
 
-            {/* Geo Feed Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-              {shops.slice(0, 8).map((s) => (
-                <div
-                  key={s.id}
-                  className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2 hover:border-amber-500/50 transition group"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1 font-bold text-amber-400">
-                      <MapPin className="w-3.5 h-3.5 text-amber-500" />
-                      <span>{s.city}, {s.state.slice(0, 2).toUpperCase()}</span>
-                    </span>
-                    <span
-                      className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${
-                        s.agentConnected
-                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                          : "bg-slate-800 text-slate-400"
-                      }`}
-                    >
-                      {s.agentConnected ? "Agent Online" : "Web Only"}
-                    </span>
-                  </div>
-
-                  <div>
-                    <h5 className="font-black text-white truncate group-hover:text-amber-300 transition">
-                      {s.shopName}
-                    </h5>
-                    <span className="text-[11px] text-slate-400 block truncate">
-                      {s.ownerName} • {s.phone}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-800/80">
-                    <span className="font-mono text-slate-400">{s.lastLogin}</span>
-                    <span className="font-bold text-sky-400">{s.printsCount} prints</span>
-                  </div>
+            {/* KPI Cards Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span className="text-xs font-bold">Total Registered Shops</span>
+                  <Store className="w-4 h-4 text-amber-400" />
                 </div>
-              ))}
+                <div className="text-3xl font-black text-white">{metrics?.totalShops ?? 0}</div>
+                <div className="text-[11px] text-slate-400 flex items-center gap-2">
+                  <span className="text-emerald-400 font-bold">{metrics?.activeShops ?? 0} active</span>
+                  <span>•</span>
+                  <span className="text-amber-400 font-bold">{metrics?.trialShops ?? 0} on trial</span>
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span className="text-xs font-bold">Gross Collections</span>
+                  <DollarSign className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="text-3xl font-black text-emerald-400">
+                  ₹{(metrics?.grossCollections ?? 0).toLocaleString("en-IN")}
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  Net Collections: ₹{(metrics?.netCollections ?? 0).toLocaleString("en-IN")} (0 refunds)
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span className="text-xs font-bold">Estimated MRR</span>
+                  <TrendingUp className="w-4 h-4 text-blue-400" />
+                </div>
+                <div className="text-3xl font-black text-white">
+                  ₹{(metrics?.mrr ?? 0).toLocaleString("en-IN")}
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  Monthly Recurring Revenue run-rate
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span className="text-xs font-bold">Print Jobs Spooled</span>
+                  <Printer className="w-4 h-4 text-indigo-400" />
+                </div>
+                <div className="text-3xl font-black text-white">{metrics?.totalOrders ?? 0}</div>
+                <div className="text-[11px] text-slate-400">
+                  {metrics?.totalPages ?? 0} total physical pages printed
+                </div>
+              </div>
+            </div>
+
+            {/* Subscriptions breakdown */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-slate-400 font-bold block">Free 24h Trials</span>
+                  <span className="text-xl font-black text-amber-400">{metrics?.planCounts.trial ?? 0}</span>
+                </div>
+                <span className="px-2.5 py-1 rounded-xl bg-amber-500/10 text-amber-400 text-xs font-bold">₹0</span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-slate-400 font-bold block">Monthly Starter</span>
+                  <span className="text-xl font-black text-blue-400">{metrics?.planCounts.monthly ?? 0}</span>
+                </div>
+                <span className="px-2.5 py-1 rounded-xl bg-blue-500/10 text-blue-400 text-xs font-bold">₹199/mo</span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-slate-400 font-bold block">Yearly Business</span>
+                  <span className="text-xl font-black text-emerald-400">{metrics?.planCounts.yearly ?? 0}</span>
+                </div>
+                <span className="px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-400 text-xs font-bold">₹599/yr</span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-slate-400 font-bold block">Lifetime Supreme</span>
+                  <span className="text-xl font-black text-purple-400">{metrics?.planCounts.lifetime ?? 0}</span>
+                </div>
+                <span className="px-2.5 py-1 rounded-xl bg-purple-500/10 text-purple-400 text-xs font-bold">₹1,299 once</span>
+              </div>
             </div>
           </div>
         )}
 
-        {/* 3. SHOPS DIRECTORY & USER MANAGEMENT */}
-        {(activeTab === "overview" || activeTab === "shops") && (
-          <div className="bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl space-y-6">
-            
-            {/* Table Header & Controls */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-              <div>
-                <h3 className="font-black text-lg text-white">
-                  Shop Directory &amp; Access Controls
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Manage accounts, upgrade plans, extend trial, or message on WhatsApp
-                </p>
+        {/* ─────────────────────────────────────────────────────────────
+            TAB 2: SHOP MANAGEMENT (WITH REAL ACTIONS)
+        ───────────────────────────────────────────────────────────── */}
+        {activeTab === "shops" && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Filter and Search Bar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-slate-900 border border-slate-800">
+              <div className="relative w-full sm:w-80">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                <input
+                  type="text"
+                  placeholder="Search shop, owner, phone, city..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
               </div>
 
-              {/* Search & Filters */}
-              <div className="flex flex-wrap items-center gap-2.5">
-                {/* Search Bar */}
-                <div className="relative">
-                  <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    placeholder="Search shop, phone, city..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 pr-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-amber-500 w-48 sm:w-60"
-                  />
-                </div>
-
-                {/* Plan Filter */}
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 <select
                   value={filterPlan}
-                  onChange={(e) => setFilterPlan(e.target.value as any)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-slate-300 focus:outline-none"
+                  onChange={(e) => setFilterPlan(e.target.value)}
+                  className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-slate-300 focus:outline-none"
                 >
-                  <option value="all">All Plans ({shops.length})</option>
-                  <option value="trial">Free Demo ({activeDemos})</option>
-                  <option value="yearly">Yearly Business</option>
-                  <option value="lifetime">Lifetime Supreme</option>
-                  <option value="expired">Expired Demos</option>
+                  <option value="all">All Plans</option>
+                  <option value="trial">Trial</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                  <option value="lifetime">Lifetime</option>
+                </select>
+
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-slate-300 focus:outline-none"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="trial">Trial</option>
+                  <option value="suspended">Suspended</option>
+                  <option value="expired">Expired</option>
                 </select>
               </div>
             </div>
 
             {/* Shops Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider text-[10px] font-black border-b border-slate-800">
-                  <tr>
-                    <th className="p-3">Shop ID &amp; Name</th>
-                    <th className="p-3">Owner &amp; WhatsApp</th>
-                    <th className="p-3">Location</th>
-                    <th className="p-3">Plan &amp; Validity</th>
-                    <th className="p-3">Prints / Rev</th>
-                    <th className="p-3 text-center">Founder Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800 font-medium">
-                  {filteredShops.map((shop) => (
-                    <tr key={shop.id} className="hover:bg-slate-800/40 transition">
-                      {/* Shop ID & Name */}
-                      <td className="p-3">
-                        <span className="font-mono text-[10px] text-amber-400 block font-bold">
-                          #{shop.id}
-                        </span>
-                        <span className="font-bold text-white text-xs block">
-                          {shop.shopName}
-                        </span>
-                        <span className="text-[10px] text-slate-500">
-                          Reg: {shop.registeredDate}
-                        </span>
-                      </td>
+            <div className="rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-950 text-slate-400 uppercase font-bold text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="p-4">Shop &amp; Owner</th>
+                      <th className="p-4">Phone &amp; City</th>
+                      <th className="p-4">Plan &amp; Status</th>
+                      <th className="p-4">Print Agent</th>
+                      <th className="p-4">Activity</th>
+                      <th className="p-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {filteredShops.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-slate-500">
+                          No shops found matching the search criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredShops.map((shop) => (
+                        <tr key={shop.id} className="hover:bg-slate-800/40 transition">
+                          <td className="p-4">
+                            <div className="font-bold text-white text-sm">{shop.shopName}</div>
+                            <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                              <span>{shop.ownerName}</span>
+                              <span className="font-mono text-amber-400/80">({shop.id})</span>
+                            </div>
+                          </td>
 
-                      {/* Owner & Phone */}
-                      <td className="p-3">
-                        <span className="font-bold text-slate-200 block">{shop.ownerName}</span>
-                        <div className="flex items-center gap-1 text-slate-400 font-mono text-[11px]">
-                          <span>+91 {shop.phone}</span>
-                          <a
-                            href={`https://wa.me/91${shop.phone}?text=Hello%20${encodeURIComponent(shop.ownerName)}%20ji,%20QR%20Print%20Seva%20support%20here.`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1 rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-                            title="Chat on WhatsApp"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                          </a>
-                        </div>
-                      </td>
+                          <td className="p-4">
+                            <div className="font-mono text-slate-300 font-semibold">{shop.phone}</div>
+                            <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-3 h-3 text-slate-500" />
+                              <span>{shop.city}, {shop.state}</span>
+                            </div>
+                          </td>
 
-                      {/* Location */}
-                      <td className="p-3">
-                        <span className="font-bold text-slate-200 block">{shop.city}</span>
-                        <span className="text-[11px] text-slate-500">{shop.state}</span>
-                      </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                                  shop.plan === "lifetime"
+                                    ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                                    : shop.plan === "yearly"
+                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                    : shop.plan === "monthly"
+                                    ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                                    : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                }`}
+                              >
+                                {shop.plan}
+                              </span>
+                              <span
+                                className={`w-2 h-2 rounded-full ${
+                                  shop.status === "active"
+                                    ? "bg-emerald-400"
+                                    : shop.status === "suspended"
+                                    ? "bg-rose-500"
+                                    : "bg-amber-400"
+                                }`}
+                              />
+                            </div>
+                            <div className="text-[10px] text-slate-500 mt-1">
+                              Expiry: {new Date(shop.planExpiresAt).toLocaleDateString()}
+                            </div>
+                          </td>
 
-                      {/* Plan & Status */}
-                      <td className="p-3">
-                        <div className="space-y-1">
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                              shop.plan === "lifetime"
-                                ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
-                                : shop.plan === "yearly"
-                                ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                                : shop.status === "expired"
-                                ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-                                : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                            }`}
-                          >
-                            {shop.plan === "trial" ? "24-Hr Demo" : shop.plan}
-                          </span>
-                          <span className="text-[10px] text-slate-400 block font-mono">
-                            {shop.plan === "lifetime"
-                              ? "Permanent"
-                              : `${shop.expiryDays} days remaining`}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Prints / Rev */}
-                      <td className="p-3">
-                        <span className="font-bold text-white block">{shop.printsCount} prints</span>
-                        <span className="text-[10px] text-emerald-400 font-mono">
-                          ₹{shop.revenueGenerated} sales
-                        </span>
-                      </td>
-
-                      {/* Controls */}
-                      <td className="p-3 text-center">
-                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                          {/* 1-Click Upgrade Button */}
-                          {shop.plan === "trial" && (
-                            <button
-                              onClick={() => handleUpgradePlan(shop.id, "yearly")}
-                              className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] transition"
-                              title="Upgrade to Yearly Pro Plan"
-                            >
-                              + Yearly Plan
-                            </button>
-                          )}
-
-                          {/* Extend Demo */}
-                          {shop.plan === "trial" && (
-                            <button
-                              onClick={() => handleExtendDemo(shop.id)}
-                              className="px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold text-[10px] transition border border-amber-500/30"
-                              title="Add +24 Hours Trial"
-                            >
-                              +24h Trial
-                            </button>
-                          )}
-
-                          {/* Block/Unblock */}
-                          <button
-                            onClick={() => handleToggleBlock(shop.id)}
-                            className={`p-1.5 rounded transition ${
-                              shop.status === "blocked"
-                                ? "bg-emerald-500/20 text-emerald-400"
-                                : "bg-slate-800 text-slate-400 hover:text-rose-400"
-                            }`}
-                            title={shop.status === "blocked" ? "Unblock Shop" : "Block Access"}
-                          >
-                            {shop.status === "blocked" ? (
-                              <CheckCircle2 className="w-3.5 h-3.5" />
+                          <td className="p-4">
+                            {shop.agentConnected ? (
+                              <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[11px]">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                                <span>Online</span>
+                              </div>
                             ) : (
-                              <XCircle className="w-3.5 h-3.5" />
+                              <div className="text-slate-500 text-[11px]">Offline</div>
                             )}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                            <div className="text-[10px] text-slate-500 mt-0.5 font-mono">
+                              {shop.connectedPc || "No PC bind"}
+                            </div>
+                          </td>
 
-          </div>
-        )}
+                          <td className="p-4">
+                            <div className="text-slate-300 font-bold">{shop.stats.totalOrders} prints</div>
+                            <div className="text-[11px] text-emerald-400">₹{shop.stats.revenueGenerated} sales</div>
+                          </td>
 
-        {/* 4. FINANCIAL SALES & TRANSACTIONS */}
-        {(activeTab === "overview" || activeTab === "sales") && (
-          <div className="bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-emerald-400" />
-                <h3 className="font-black text-base text-white">
-                  Recent Subscription Sales &amp; Revenue Transactions
-                </h3>
+                          <td className="p-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Extend Trial */}
+                              <button
+                                onClick={() => {
+                                  setSelectedShop(shop);
+                                  setActionModal("extend_trial");
+                                }}
+                                title="Extend Trial"
+                                className="px-2.5 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-[11px] font-bold transition"
+                              >
+                                +Extend
+                              </button>
+
+                              {/* Change Plan */}
+                              <button
+                                onClick={() => {
+                                  setSelectedShop(shop);
+                                  setNewPlanSelection(shop.plan);
+                                  setActionModal("change_plan");
+                                }}
+                                title="Change Subscription Plan"
+                                className="px-2.5 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 text-[11px] font-bold transition"
+                              >
+                                Plan
+                              </button>
+
+                              {/* Toggle Suspend/Activate */}
+                              {shop.status === "suspended" ? (
+                                <button
+                                  onClick={() => executeShopAction(shop.id, "activate")}
+                                  className="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-[11px] font-bold transition"
+                                >
+                                  Activate
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    if (confirm(`Are you sure you want to suspend shop ${shop.shopName}?`)) {
+                                      executeShopAction(shop.id, "suspend");
+                                    }
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-[11px] font-bold transition"
+                                >
+                                  Suspend
+                                </button>
+                              )}
+
+                              {/* Reset Password */}
+                              <button
+                                onClick={() => {
+                                  setSelectedShop(shop);
+                                  setActionModal("reset_password");
+                                }}
+                                title="Reset Shop Password"
+                                className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+                              >
+                                <Key className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <span className="font-mono text-xs text-emerald-400 font-bold">
-                Total Revenue: ₹{totalRevenue.toLocaleString("en-IN")}
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider text-[10px] font-black border-b border-slate-800">
-                  <tr>
-                    <th className="p-3">Txn ID</th>
-                    <th className="p-3">Shop / Owner</th>
-                    <th className="p-3">Plan Purchased</th>
-                    <th className="p-3">Amount</th>
-                    <th className="p-3">Bank UTR Ref</th>
-                    <th className="p-3">Date</th>
-                    <th className="p-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800 font-medium font-mono text-[11px]">
-                  {sales.map((sale) => (
-                    <tr key={sale.id} className="hover:bg-slate-800/40 transition">
-                      <td className="p-3 text-amber-400 font-bold">{sale.id}</td>
-                      <td className="p-3 font-sans font-bold text-white">
-                        {sale.shopName}
-                        <span className="text-[10px] text-slate-400 block font-normal">
-                          {sale.ownerName}
-                        </span>
-                      </td>
-                      <td className="p-3 font-sans text-slate-300">{sale.plan}</td>
-                      <td className="p-3 font-bold text-emerald-400">₹{sale.amount}</td>
-                      <td className="p-3 text-slate-400">{sale.utr}</td>
-                      <td className="p-3 text-slate-500">{sale.date}</td>
-                      <td className="p-3">
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-sans">
-                          <Check className="w-3 h-3" />
-                          <span>Verified</span>
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         )}
 
-        {/* 5. PRICING & SPECIAL OFFERS MANAGER */}
-        {(activeTab === "overview" || activeTab === "pricing") && (
-          <div className="bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold">
-                  <Sliders className="w-5 h-5" />
+        {/* ─────────────────────────────────────────────────────────────
+            TAB 3: SUBSCRIPTIONS & REVENUE
+        ───────────────────────────────────────────────────────────── */}
+        {activeTab === "sales" && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-slate-900 border border-slate-800">
+              <div>
+                <h3 className="text-xl font-black text-white">Subscription &amp; Revenue Ledger</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Reconciled payments for software subscriptions and customer print volume.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <a
+                  href="/api/admin/export?type=shops"
+                  className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-black text-xs hover:bg-amber-400 transition flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Financial Statement (CSV)</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Plans Revenue Breakdown */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
+                <span className="text-xs font-bold text-slate-400">Monthly Subscriptions (₹199)</span>
+                <div className="text-2xl font-black text-white">
+                  ₹{((metrics?.planCounts.monthly ?? 0) * 199).toLocaleString("en-IN")}
                 </div>
+                <div className="text-[11px] text-slate-500">{metrics?.planCounts.monthly ?? 0} active subscribers</div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
+                <span className="text-xs font-bold text-slate-400">Yearly Business (₹599)</span>
+                <div className="text-2xl font-black text-white">
+                  ₹{((metrics?.planCounts.yearly ?? 0) * 599).toLocaleString("en-IN")}
+                </div>
+                <div className="text-[11px] text-slate-500">{metrics?.planCounts.yearly ?? 0} active annual shops</div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
+                <span className="text-xs font-bold text-slate-400">Lifetime Supreme (₹1,299)</span>
+                <div className="text-2xl font-black text-white">
+                  ₹{((metrics?.planCounts.lifetime ?? 0) * 1299).toLocaleString("en-IN")}
+                </div>
+                <div className="text-[11px] text-slate-500">{metrics?.planCounts.lifetime ?? 0} lifetime licenses</div>
+              </div>
+            </div>
+
+            {/* Recent Orders & Print Transactions */}
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-white text-sm">Customer Print Volume Ledger</h4>
+                <a
+                  href="/api/admin/export?type=orders"
+                  className="text-xs font-bold text-amber-400 hover:underline flex items-center gap-1"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Export Orders CSV</span>
+                </a>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+                <span>Completed Orders: <strong className="text-white">{metrics?.completedOrders ?? 0}</strong></span>
+                <span>Physical Pages Printed: <strong className="text-white">{metrics?.totalPages ?? 0}</strong></span>
+                <span>Customer Volume Collections: <strong className="text-emerald-400">₹{(metrics?.printRevenue ?? 0).toLocaleString("en-IN")}</strong></span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─────────────────────────────────────────────────────────────
+            TAB 4: SYSTEM & SECURITY MONITORING
+        ───────────────────────────────────────────────────────────── */}
+        {activeTab === "system" && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-2">
+              <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest block">
+                Infrastructure Health Telemetry
+              </span>
+              <h3 className="text-xl font-black text-white">System Diagnostics &amp; DPDP Security</h3>
+              <p className="text-xs text-slate-400">
+                Live server-side diagnostics, ephemeral disk garbage collection status, and compliance tracking.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Ephemeral Storage Box */}
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+                <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
+                  <HardDrive className="w-4 h-4" />
+                  <span>Ephemeral Disk Storage</span>
+                </div>
+                <div className="text-2xl font-black text-white">
+                  {systemDiag?.ephemeralStorage.activeFiles ?? 0} files ({systemDiag?.ephemeralStorage.totalMb ?? "0.00"} MB)
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  {systemDiag?.ephemeralStorage.purgePolicy || "15-minute auto-unlink statutory guarantee"}
+                </p>
+                <div className="pt-2 border-t border-slate-800 text-[10px] text-emerald-400 font-mono">
+                  ● DPDP Act Section 8(7) Compliant
+                </div>
+              </div>
+
+              {/* Server Memory Box */}
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+                <div className="flex items-center gap-2 text-blue-400 font-bold text-xs">
+                  <Cpu className="w-4 h-4" />
+                  <span>Server Memory &amp; Runtime</span>
+                </div>
+                <div className="text-2xl font-black text-white">
+                  {systemDiag?.serverMemory.heapUsedMb ?? 0} MB / {systemDiag?.serverMemory.heapTotalMb ?? 0} MB
+                </div>
+                <p className="text-[11px] text-slate-400 font-mono">
+                  Node {systemDiag?.nodeVersion} • Uptime {Math.round((systemDiag?.uptimeSeconds ?? 0) / 60)} mins
+                </p>
+                <div className="pt-2 border-t border-slate-800 text-[10px] text-blue-400 font-mono">
+                  ● Garbage Collector Active
+                </div>
+              </div>
+
+              {/* Agent Health Box */}
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                  <Activity className="w-4 h-4" />
+                  <span>Windows Print Agents</span>
+                </div>
+                <div className="text-2xl font-black text-emerald-400">
+                  {systemDiag?.agentHealth.online ?? 0} Connected
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  {systemDiag?.agentHealth.offline ?? 0} shop terminals currently offline
+                </p>
+                <div className="pt-2 border-t border-slate-800 text-[10px] text-emerald-400 font-mono">
+                  ● Heartbeat Spooling Active
+                </div>
+              </div>
+            </div>
+
+            {/* Security Audit Controls */}
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
+              <h4 className="font-bold text-white text-sm">Security Controls &amp; Enforcement</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                  <span className="text-slate-300">Rate Limiter (Brute Force Defense)</span>
+                  <span className="text-emerald-400 font-bold">5 Attempts / 15m</span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                  <span className="text-slate-300">Strict-Transport-Security (HSTS)</span>
+                  <span className="text-emerald-400 font-bold">Active (63072000s)</span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                  <span className="text-slate-300">Anti-Clickjacking (X-Frame-Options)</span>
+                  <span className="text-emerald-400 font-bold">SAMEORIGIN</span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                  <span className="text-slate-300">Download Token Signing</span>
+                  <span className="text-emerald-400 font-bold">Cryptographic Random HMAC</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─────────────────────────────────────────────────────────────
+            TAB 5: PRICING & FESTIVE OFFERS
+        ───────────────────────────────────────────────────────────── */}
+        {activeTab === "pricing" && (
+          <form onSubmit={handleSavePricingOffer} className="space-y-6 animate-in fade-in duration-200">
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-6">
+              <div>
+                <h3 className="text-lg font-black text-white">Global SaaS Subscription Pricing</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Change pricing live across the landing page, register screen, and checkout.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                 <div>
-                  <h3 className="font-black text-base text-white">
-                    Platform Pricing &amp; Festive Offers Manager 🏷️
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Change subscription plan prices and launch festive discount deals across the platform
-                  </p>
+                  <label className="block text-slate-400 font-bold mb-1.5">Monthly Starter Plan (₹):</label>
+                  <input
+                    type="number"
+                    value={priceMonthly}
+                    onChange={(e) => setPriceMonthly(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1.5">Yearly Business Plan (₹):</label>
+                  <input
+                    type="number"
+                    value={priceYearly}
+                    onChange={(e) => setPriceYearly(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1.5">Lifetime Supreme Plan (₹):</label>
+                  <input
+                    type="number"
+                    value={priceLifetime}
+                    onChange={(e) => setPriceLifetime(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    required
+                  />
                 </div>
               </div>
 
-              <span className="text-xs text-amber-400 font-mono font-bold bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
-                Live Cloud Sync Enabled
-              </span>
-            </div>
-
-            <form onSubmit={handleSavePricingOffer} className="space-y-6 text-xs">
-              {/* Row 1: The 3 Base Subscription Prices */}
-              <div className="space-y-2">
-                <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
-                  1. Base Subscription Plan Pricing:
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {/* Monthly Plan */}
-                  <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5">
-                    <label className="block text-[11px] font-bold text-slate-400">
-                      Monthly Plan (₹ / mo):
-                    </label>
-                    <div className="flex items-center gap-1.5 font-mono text-base font-bold text-white">
-                      <span>₹</span>
-                      <input
-                        type="number"
-                        value={priceMonthly}
-                        onChange={(e) => setPriceMonthly(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-bold text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-                    <span className="text-[10px] text-slate-500">Regular: ₹199 / month</span>
-                  </div>
-
-                  {/* Yearly Plan */}
-                  <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5">
-                    <label className="block text-[11px] font-bold text-slate-400">
-                      Yearly Business (₹ / year):
-                    </label>
-                    <div className="flex items-center gap-1.5 font-mono text-base font-bold text-white">
-                      <span>₹</span>
-                      <input
-                        type="number"
-                        value={priceYearly}
-                        onChange={(e) => setPriceYearly(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-blue-400 font-bold text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-                    <span className="text-[10px] text-slate-500">Regular: ₹599 (Best Seller)</span>
-                  </div>
-
-                  {/* Lifetime Plan */}
-                  <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5">
-                    <label className="block text-[11px] font-bold text-slate-400">
-                      Lifetime Supreme (₹ One-Time):
-                    </label>
-                    <div className="flex items-center gap-1.5 font-mono text-base font-bold text-white">
-                      <span>₹</span>
-                      <input
-                        type="number"
-                        value={priceLifetime}
-                        onChange={(e) => setPriceLifetime(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-amber-400 font-bold text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-                    <span className="text-[10px] text-slate-500">Regular: ₹1,299 / lifetime</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 2: Special Festive Offer / Coupon Setup */}
-              <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-850">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
-                    <span className="font-extrabold text-sm text-white">
-                      2. Active Festive Offer / Discount Campaign
-                    </span>
-                  </div>
-
-                  {/* Toggle Active Switch */}
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <span className="text-xs font-bold text-slate-300">
-                      {offerEnabled ? "OFFER ACTIVE (Live)" : "OFFER DISABLED"}
-                    </span>
+              <div className="pt-4 border-t border-slate-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-white text-sm">Festive / Launch Offer Banner</h4>
+                  <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
                       checked={offerEnabled}
                       onChange={(e) => setOfferEnabled(e.target.checked)}
-                      className="sr-only"
+                      className="sr-only peer"
                     />
-                    <div
-                      className={`w-11 h-6 rounded-full transition relative ${
-                        offerEnabled ? "bg-emerald-500" : "bg-slate-700"
-                      }`}
-                    >
-                      <div
-                        className={`w-4 h-4 bg-white rounded-full absolute top-1 transition ${
-                          offerEnabled ? "left-6" : "left-1"
-                        }`}
-                      ></div>
-                    </div>
+                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
                   </label>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">
-                      Offer Title / Headline:
-                    </label>
+                    <label className="block text-slate-400 font-bold mb-1">Offer Title:</label>
                     <input
                       type="text"
                       value={offerTitle}
                       onChange={(e) => setOfferTitle(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500"
-                      placeholder="e.g. ⚡ Special Launch Offer"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none"
                     />
                   </div>
-
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">
-                      Badge Text:
-                    </label>
-                    <input
-                      type="text"
-                      value={offerBadge}
-                      onChange={(e) => setOfferBadge(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-amber-400 font-bold focus:outline-none focus:ring-1 focus:ring-amber-500"
-                      placeholder="e.g. FLAT ₹300 OFF"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">
-                      Coupon Code:
-                    </label>
+                    <label className="block text-slate-400 font-bold mb-1">Coupon Code:</label>
                     <input
                       type="text"
                       value={offerCode}
                       onChange={(e) => setOfferCode(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white font-mono font-bold uppercase focus:outline-none focus:ring-1 focus:ring-amber-500"
-                      placeholder="e.g. LAUNCH300"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">
-                      Discounted Lifetime Price (₹):
-                    </label>
-                    <input
-                      type="number"
-                      value={discountLifetime}
-                      onChange={(e) => setDiscountLifetime(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-emerald-400 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-amber-500"
-                      placeholder="999"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-amber-400 font-mono font-bold focus:outline-none"
                     />
                   </div>
                 </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">
-                    Offer Description (Shown in pricing cards):
-                  </label>
-                  <input
-                    type="text"
-                    value={offerDesc}
-                    onChange={(e) => setOfferDesc(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-slate-300 font-medium focus:outline-none focus:ring-1 focus:ring-amber-500"
-                    placeholder="e.g. Get Lifetime Supreme Plan for just ₹999 (Limited to first 50 shops)"
-                  />
-                </div>
               </div>
 
-              {/* Submit Button */}
-              <div className="flex items-center justify-end">
-                <button
-                  type="submit"
-                  className="px-6 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs shadow-lg transition active:scale-95 flex items-center gap-2"
-                >
-                  <Check className="w-4 h-4" />
-                  <span>Save &amp; Publish Pricing / Offers</span>
-                </button>
-              </div>
-            </form>
-          </div>
+              <button
+                type="submit"
+                className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition shadow-lg shadow-amber-500/20 active:scale-95"
+              >
+                Save &amp; Publish Pricing Changes live ›
+              </button>
+            </div>
+          </form>
         )}
 
-        {/* 6. GLOBAL PROMO POPUP MANAGER (WITH LIVE PREVIEW) */}
-        {(activeTab === "overview" || activeTab === "popup") && (
-          <div className="bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-pink-500 to-rose-600 flex items-center justify-center text-white font-bold">
-                  <Zap className="w-5 h-5" />
-                </div>
+        {/* ─────────────────────────────────────────────────────────────
+            TAB 6: GLOBAL PROMO POPUP
+        ───────────────────────────────────────────────────────────── */}
+        {activeTab === "popup" && (
+          <form onSubmit={handleSavePopup} className="space-y-6 animate-in fade-in duration-200">
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-black text-base text-white">
-                    Website Promo Popup Modal Manager 🎯
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Control the promotional popup that appears for visitors and shopkeepers on the website
+                  <h3 className="text-lg font-black text-white">Global Visitor Modal / Popup</h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Display an interactive promotional modal to all first-time visitors on the landing page.
                   </p>
                 </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={popupEnabled}
+                    onChange={(e) => setPopupEnabled(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                </label>
               </div>
 
-              {/* Popup Toggle Switch */}
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <span className="text-xs font-bold text-slate-300">
-                  {popupEnabled ? "POPUP ACTIVE (Live on Site)" : "POPUP OFF"}
-                </span>
-                <input
-                  type="checkbox"
-                  checked={popupEnabled}
-                  onChange={(e) => setPopupEnabled(e.target.checked)}
-                  className="sr-only"
-                />
-                <div
-                  className={`w-11 h-6 rounded-full transition relative ${
-                    popupEnabled ? "bg-emerald-500" : "bg-slate-700"
-                  }`}
-                >
-                  <div
-                    className={`w-4 h-4 bg-white rounded-full absolute top-1 transition ${
-                      popupEnabled ? "left-6" : "left-1"
-                    }`}
-                  ></div>
-                </div>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left Column: Form Controls (7 cols) */}
-              <form onSubmit={handleSavePopup} className="lg:col-span-7 space-y-4 text-xs">
+              <div className="space-y-4 text-xs">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                    Popup Badge Text:
-                  </label>
-                  <input
-                    type="text"
-                    value={popupBadge}
-                    onChange={(e) => setPopupBadge(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-amber-400 font-bold focus:outline-none focus:ring-1 focus:ring-pink-500"
-                    placeholder="e.g. LIMITED TIME OFFER"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                    Popup Headline / Title:
-                  </label>
+                  <label className="block text-slate-400 font-bold mb-1">Popup Headline:</label>
                   <input
                     type="text"
                     value={popupTitle}
                     onChange={(e) => setPopupTitle(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-bold focus:outline-none focus:ring-1 focus:ring-pink-500"
-                    placeholder="e.g. 🎉 भारत का नंबर 1 क्लाउड प्रिंटिंग सॉफ्टवेयर"
-                    required
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-bold focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                    Popup Message Body:
-                  </label>
+                  <label className="block text-slate-400 font-bold mb-1">Popup Message Description:</label>
                   <textarea
                     rows={3}
                     value={popupMessage}
                     onChange={(e) => setPopupMessage(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-300 font-medium focus:outline-none focus:ring-1 focus:ring-pink-500"
-                    placeholder="e.g. साइबर कैफे और जन सेवा केंद्रों के लिए विशेष छूट!..."
-                    required
+                    className="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                      Button Text:
-                    </label>
+                    <label className="block text-slate-400 font-bold mb-1">Button Call to Action:</label>
                     <input
                       type="text"
                       value={popupBtnText}
                       onChange={(e) => setPopupBtnText(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-bold focus:outline-none focus:ring-1 focus:ring-pink-500"
-                      placeholder="e.g. फ्री डेमो टेस्ट करें ›"
-                      required
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none"
                     />
                   </div>
-
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                      Button Destination Link:
-                    </label>
+                    <label className="block text-slate-400 font-bold mb-1">Target URL / Section:</label>
                     <input
                       type="text"
                       value={popupBtnLink}
                       onChange={(e) => setPopupBtnLink(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-sky-400 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-pink-500"
-                      placeholder="e.g. /#pricing or /demo"
-                      required
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-amber-400 font-mono focus:outline-none"
                     />
                   </div>
                 </div>
-
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white font-black text-xs shadow-lg shadow-pink-500/20 transition active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span>Save &amp; Update Promo Popup</span>
-                  </button>
-                </div>
-              </form>
-
-              {/* Right Column: Interactive Live Preview (5 cols) */}
-              <div className="lg:col-span-5 flex flex-col justify-center">
-                <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 text-center">
-                  Live Visitor View Preview:
-                </span>
-
-                <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 border-2 border-dashed border-blue-500/50 text-white text-center space-y-3 relative shadow-2xl">
-                  {/* Preview Close X */}
-                  <span className="absolute top-3 right-3 text-slate-500 text-xs font-bold">✕</span>
-
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-[9px] font-black uppercase tracking-wider">
-                    <span>{popupBadge || "SPECIAL OFFER"}</span>
-                  </div>
-
-                  <h4 className="text-base font-black text-white leading-tight">
-                    {popupTitle || "Popup Title Appears Here"}
-                  </h4>
-
-                  <p className="text-xs text-slate-300 leading-relaxed font-medium line-clamp-3">
-                    {popupMessage || "Popup message text will appear here."}
-                  </p>
-
-                  <div className="pt-2">
-                    <div className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-black text-xs shadow-md">
-                      {popupBtnText || "Button Text"}
-                    </div>
-                  </div>
-
-                  <span className="block text-[9px] text-slate-500 font-mono pt-1">
-                    Status: {popupEnabled ? "🟢 ACTIVE" : "⚪ DISABLED"} • Target: {popupBtnLink}
-                  </span>
-                </div>
               </div>
+
+              <button
+                type="submit"
+                className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition shadow-lg shadow-amber-500/20 active:scale-95"
+              >
+                Save &amp; Update Promo Popup ›
+              </button>
             </div>
-          </div>
+          </form>
         )}
 
-        {/* 5. GLOBAL BROADCAST CENTER */}
-        {(activeTab === "overview" || activeTab === "broadcast") && (
-          <div className="bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl space-y-4">
-            <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
-              <Bell className="w-5 h-5 text-amber-400" />
-              <div>
-                <h3 className="font-black text-base text-white">
-                  Global Shop Announcement Broadcast 📢
-                </h3>
-                <span className="text-xs text-slate-400">
-                  Broadcast instant banner notification to all cyber cafe dashboards across India
-                </span>
-              </div>
-            </div>
+        {/* ─────────────────────────────────────────────────────────────
+            TAB 7: GLOBAL BROADCAST
+        ───────────────────────────────────────────────────────────── */}
+        {activeTab === "broadcast" && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
+              <h3 className="text-lg font-black text-white">Push Global Broadcast Announcement</h3>
+              <p className="text-xs text-slate-400">
+                Pushes an immediate banner notice to all online cyber cafes and Jan Seva Kendra operator dashboards.
+              </p>
 
-            <form onSubmit={handleSendBroadcast} className="space-y-3">
-              <textarea
-                rows={3}
-                placeholder="Type urgent notification (e.g. '🎉 New Feature Alert: Passport Photo Studio 2.0 is now live for all shops! Check your tools.')"
-                value={broadcastText}
-                onChange={(e) => setBroadcastText(e.target.value)}
-                className="w-full p-3 rounded-2xl bg-slate-950 border border-slate-700 text-xs text-white font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
-                required
-              />
-
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-slate-500 font-medium">
-                  {broadcastSent ? "✓ Sent to all 142 shop dashboards" : "Will appear as top announcement banner"}
-                </span>
+              <form onSubmit={handleSendBroadcast} className="space-y-4">
+                <textarea
+                  rows={4}
+                  required
+                  placeholder="e.g. 📢 Important Server Maintenance: Tonight from 2:00 AM to 2:30 AM IST. All print services will resume automatically."
+                  value={broadcastText}
+                  onChange={(e) => setBroadcastText(e.target.value)}
+                  className="w-full p-4 rounded-2xl bg-slate-950 border border-slate-700 text-white text-xs placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
 
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md transition flex items-center gap-1.5 active:scale-95"
+                  disabled={broadcastSent}
+                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black text-xs transition flex items-center gap-2 active:scale-95 disabled:opacity-50"
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Broadcast Now</span>
+                  <Send className="w-4 h-4" />
+                  <span>{broadcastSent ? "Broadcast Pushed! 📢" : "Send Global Broadcast Announcement"}</span>
                 </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
         )}
 
       </main>
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODALS FOR ADMINISTRATIVE ACTIONS
+      ───────────────────────────────────────────────────────────── */}
+      
+      {/* 1. Extend Trial Modal */}
+      {actionModal === "extend_trial" && selectedShop && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full space-y-4 text-xs text-slate-300 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-white text-base">Extend Trial Period</h3>
+              <button onClick={() => setActionModal(null)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-slate-400">
+              Extend access for <strong>{selectedShop.shopName}</strong> ({selectedShop.id}).
+            </p>
+
+            <div>
+              <label className="block font-bold text-slate-300 mb-1">Additional Days:</label>
+              <input
+                type="number"
+                min="1"
+                max="90"
+                value={extendDays}
+                onChange={(e) => setExtendDays(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-300 mb-1">Recorded Reason for Audit Log:</label>
+              <input
+                type="text"
+                value={extendReason}
+                onChange={(e) => setExtendReason(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setActionModal(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() =>
+                  executeShopAction(selectedShop.id, "extend_trial", {
+                    days: Number(extendDays) || 7,
+                    reason: extendReason,
+                  })
+                }
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black"
+              >
+                {actionLoading ? "Extending..." : "Confirm Extension"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Change Plan Modal */}
+      {actionModal === "change_plan" && selectedShop && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full space-y-4 text-xs text-slate-300 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-white text-base">Change Subscription Plan</h3>
+              <button onClick={() => setActionModal(null)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-slate-400">
+              Update plan for <strong>{selectedShop.shopName}</strong> ({selectedShop.id}).
+            </p>
+
+            <div className="space-y-2">
+              {(["trial", "monthly", "yearly", "lifetime"] as const).map((p) => (
+                <label
+                  key={p}
+                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
+                    newPlanSelection === p
+                      ? "bg-amber-500/10 border-amber-500 text-amber-300"
+                      : "bg-slate-950 border-slate-800 text-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="plan"
+                      checked={newPlanSelection === p}
+                      onChange={() => setNewPlanSelection(p)}
+                      className="text-amber-500"
+                    />
+                    <span className="font-bold capitalize">{p} Plan</span>
+                  </div>
+                  <span className="font-mono text-[11px] text-slate-400">
+                    {p === "lifetime" ? "₹1,299" : p === "yearly" ? "₹599/yr" : p === "monthly" ? "₹199/mo" : "Free"}
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setActionModal(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() =>
+                  executeShopAction(selectedShop.id, "change_plan", {
+                    plan: newPlanSelection,
+                  })
+                }
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black"
+              >
+                {actionLoading ? "Updating..." : "Save Plan Change"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Reset Password Modal */}
+      {actionModal === "reset_password" && selectedShop && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full space-y-4 text-xs text-slate-300 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-white text-base">Reset Shop Password</h3>
+              <button onClick={() => setActionModal(null)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-slate-400">
+              Generate a temporary password for <strong>{selectedShop.shopName}</strong> ({selectedShop.phone}).
+            </p>
+
+            <div>
+              <label className="block font-bold text-slate-300 mb-1">Temporary Password:</label>
+              <input
+                type="text"
+                value={tempPassword}
+                onChange={(e) => setTempPassword(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-amber-400 font-mono font-bold"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setActionModal(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() =>
+                  executeShopAction(selectedShop.id, "reset_password", {
+                    newPassword: tempPassword,
+                  })
+                }
+                className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-black"
+              >
+                {actionLoading ? "Resetting..." : "Confirm Password Reset"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

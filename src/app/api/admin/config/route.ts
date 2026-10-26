@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authStore } from "@/lib/authStore";
 
 // Global Platform Configuration State (Persisted in-memory on edge)
 export interface PlatformConfig {
@@ -65,6 +66,16 @@ export async function GET() {
 // POST /api/admin/config
 export async function POST(req: NextRequest) {
   try {
+    const adminSessionId = req.cookies.get("qrp_admin_session")?.value;
+    if (!adminSessionId) {
+      return NextResponse.json({ error: "Unauthorized access: Founder authentication required" }, { status: 401 });
+    }
+
+    const session = authStore.getSession(adminSessionId);
+    if (!session || session.role !== "founder") {
+      return NextResponse.json({ error: "Forbidden: Founder access required" }, { status: 403 });
+    }
+
     const body = await req.json();
 
     platformConfig = {

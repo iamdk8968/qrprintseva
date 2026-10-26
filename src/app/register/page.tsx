@@ -70,6 +70,7 @@ export default function RegisterShopPage() {
         slug,
         address,
         upiId: upiId || `${slug}@okaxis`,
+        password,
         bwRate,
         colorRate,
         printerName: "HP LaserJet 1020",

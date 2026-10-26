@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
 import {
   Printer,
   Volume2,
@@ -15,14 +16,46 @@ import {
 } from "lucide-react";
 
 export default function TVQueueDisplayPage() {
+  const { user } = useAuth();
+  const shopSlug = user?.slug || "dk-mobile-demo";
+  const shopName = user?.shopName || "Dk mobile (Demo)";
+
   const [time, setTime] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [orders, setOrders] = useState<any[]>([]);
 
-  // Simulated live queue state
-  const currentToken = 115;
-  const nextTokens = [116, 117, 118, 119];
-  const completedTokens = [114, 113, 112, 111];
+  // Fetch real live queue
+  useEffect(() => {
+    const fetchLiveTokens = async () => {
+      try {
+        const res = await fetch(`/api/orders?shopSlug=${shopSlug}`);
+        const data = await res.json();
+        if (data.orders && Array.isArray(data.orders)) {
+          setOrders(data.orders);
+        }
+      } catch {}
+    };
+    fetchLiveTokens();
+    const interval = setInterval(fetchLiveTokens, 3000);
+    return () => clearInterval(interval);
+  }, [shopSlug]);
+
+  // Derive tokens from live orders
+  const printingOrder = orders.find((o) => o.status === "printing");
+  const queuedOrders = orders.filter((o) => o.status === "queued");
+  const doneOrders = orders.filter((o) => o.status === "done");
+
+  const currentToken = printingOrder?.token || queuedOrders[0]?.token || 115;
+  const currentFileName = printingOrder?.fileName || queuedOrders[0]?.fileName || "Document.pdf";
+  const currentPages = printingOrder?.pages || queuedOrders[0]?.pages || 1;
+
+  const nextTokens = queuedOrders
+    .filter((o) => o.token !== currentToken)
+    .map((o) => o.token)
+    .slice(0, 4);
+
+  const completedTokens = doneOrders.map((o) => o.token).slice(0, 6);
 
   useEffect(() => {
     const updateClock = () => {
@@ -69,7 +102,7 @@ export default function TVQueueDisplayPage() {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                Sharma Cyber Cafe & CSC Center
+                {shopName}
               </h1>
               <p className="text-xs text-blue-400 font-semibold flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
@@ -123,7 +156,7 @@ export default function TVQueueDisplayPage() {
             कृपया काउंटर पर उपस्थित रहें
           </p>
           <span className="text-xs text-blue-400 font-mono mt-1">
-            HP LaserJet Pro • Spooling Page 1 of 2
+            {currentFileName} • {currentPages} {currentPages > 1 ? "Pages" : "Page"}
           </span>
         </div>
 
@@ -137,21 +170,27 @@ export default function TVQueueDisplayPage() {
             </h3>
 
             <div className="grid grid-cols-2 gap-4">
-              {nextTokens.map((num, i) => (
-                <div
-                  key={num}
-                  className={`p-4 rounded-2xl border text-center transition ${
-                    i === 0
-                      ? "bg-amber-950/30 border-amber-500/40 text-amber-300 shadow-md"
-                      : "bg-slate-800/40 border-slate-800 text-slate-300"
-                  }`}
-                >
-                  <span className="block text-xs font-bold text-slate-400 mb-1">
-                    {i === 0 ? "Next Immediately" : `Position ${i + 1}`}
-                  </span>
-                  <span className="text-3xl font-black font-mono">#{num}</span>
+              {nextTokens.length === 0 ? (
+                <div className="col-span-2 p-6 rounded-2xl bg-slate-800/20 text-center text-slate-500 text-xs">
+                  कोई अन्य प्रिंट कतार में नहीं है (Queue Standby)
                 </div>
-              ))}
+              ) : (
+                nextTokens.map((num, i) => (
+                  <div
+                    key={num}
+                    className={`p-4 rounded-2xl border text-center transition ${
+                      i === 0
+                        ? "bg-amber-950/30 border-amber-500/40 text-amber-300 shadow-md"
+                        : "bg-slate-800/40 border-slate-800 text-slate-300"
+                    }`}
+                  >
+                    <span className="block text-xs font-bold text-slate-400 mb-1">
+                      {i === 0 ? "Next Immediately" : `Position ${i + 1}`}
+                    </span>
+                    <span className="text-3xl font-black font-mono">#{num}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -163,20 +202,24 @@ export default function TVQueueDisplayPage() {
             </h3>
 
             <div className="flex flex-wrap gap-3">
-              {completedTokens.map((num) => (
-                <div
-                  key={num}
-                  className="px-5 py-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 font-mono font-bold text-xl"
-                >
-                  #{num} ✓
-                </div>
-              ))}
+              {completedTokens.length === 0 ? (
+                <span className="text-xs text-slate-500">हाल ही में कोई प्रिंट नहीं निकला।</span>
+              ) : (
+                completedTokens.map((num) => (
+                  <div
+                    key={num}
+                    className="px-5 py-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 font-mono font-bold text-xl"
+                  >
+                    #{num} ✓
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Bottom Ticker / QR Notice Bar */}
+      {/* Bottom Ticker */}
       <div className="pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
         <div className="flex items-center gap-3">
           <QrCode className="w-6 h-6 text-blue-400" />

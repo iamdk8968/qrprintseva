@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { orderStore } from "@/lib/orderStore";
+import { shopStore } from "@/lib/shopStore";
 
 // In-memory or persisted agent settings state per shop
 interface ShopAgentConfig {
@@ -94,6 +95,13 @@ export async function POST(req: NextRequest) {
         agentOnline: false,
         lastHeartbeat: new Date().toISOString(),
       };
+      const foundShop = shopStore.getShopById(shopId) || shopStore.getShopBySlug(shopId);
+      if (foundShop) {
+        shopStore.updateShop(foundShop.id, {
+          agentConnected: false,
+          connectedPc: null,
+        });
+      }
       return NextResponse.json({
         success: true,
         message: "Computer disconnected successfully",
@@ -114,6 +122,18 @@ export async function POST(req: NextRequest) {
         ...(body.pricing || {}),
       },
     };
+
+    // Sync to shopStore
+    const foundShop = shopStore.getShopById(shopId) || shopStore.getShopBySlug(shopId);
+    if (foundShop) {
+      shopStore.recordAgentHeartbeat(foundShop.id, shopConfigs[shopId].computerName, {
+        bw: body.bwPrinter,
+        color: body.colorPrinter,
+        duplex: body.duplexPrinter,
+        a3: body.a3Printer,
+        photo: body.photoPrinter,
+      });
+    }
 
     // If an order ID was reported as printed
     if (body.printedOrderId) {
