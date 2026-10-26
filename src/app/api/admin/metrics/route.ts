@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authStore } from "@/lib/authStore";
 import { shopStore } from "@/lib/shopStore";
 import { orderStore } from "@/lib/orderStore";
+import { supportStore } from "@/lib/supportStore";
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
     // 2. Aggregate Real Data from shopStore
     const shops = shopStore.getAllShops();
     const orders = orderStore.getOrders();
+    const openSupportTickets = supportStore.getOpenTicketsCount();
 
     const totalShops = shops.length;
     const activeShops = shops.filter((s) => s.status === "active").length;
@@ -46,6 +48,11 @@ export async function GET(req: NextRequest) {
     const completedOrders = orders.filter((o) => o.status === "done");
     const printRevenue = completedOrders.reduce((sum, o) => sum + (o.amount || 0), 0);
     const totalPages = orders.reduce((sum, o) => sum + (o.pages * o.copies || 1), 0);
+
+    // Pending Payments (Cash pending at counter)
+    const pendingOrdersList = orders.filter((o) => o.paymentStatus === "cash_pending");
+    const pendingPaymentsAmount = pendingOrdersList.reduce((sum, o) => sum + (o.amount || 0), 0);
+    const pendingPaymentsCount = pendingOrdersList.length;
 
     const grossCollections = saasRevenue + printRevenue;
     const refunds = 0;
@@ -75,11 +82,14 @@ export async function GET(req: NextRequest) {
         totalPages,
         saasRevenue,
         printRevenue,
+        pendingPaymentsAmount,
+        pendingPaymentsCount,
         grossCollections,
         refunds,
         netCollections,
         mrr,
         conversionRate,
+        openSupportTickets,
         serverTime: new Date().toISOString(),
       },
     });

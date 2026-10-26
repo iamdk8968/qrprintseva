@@ -42,6 +42,9 @@ import {
   Layers,
   FileText,
   X,
+  HelpCircle,
+  Phone,
+  MessageSquare,
 } from "lucide-react";
 
 interface AdminMetrics {
@@ -64,12 +67,32 @@ interface AdminMetrics {
   totalPages: number;
   saasRevenue: number;
   printRevenue: number;
+  pendingPaymentsAmount?: number;
+  pendingPaymentsCount?: number;
+  openSupportTickets?: number;
   grossCollections: number;
   refunds: number;
   netCollections: number;
   mrr: number;
   conversionRate: number;
   serverTime: string;
+}
+
+interface SupportTicket {
+  id: string;
+  shopId: string;
+  shopName: string;
+  ownerName: string;
+  phone: string;
+  category: "agent_setup" | "hardware_printer" | "payment_billing" | "paper_format" | "general";
+  subject: string;
+  message: string;
+  status: "open" | "in_progress" | "resolved";
+  priority: "low" | "medium" | "high" | "urgent";
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+  founderNotes?: string;
 }
 
 interface ManagedShop {
@@ -147,17 +170,19 @@ export default function SuperAdminMasterDashboard() {
 
   // Master Dashboard Active Tab
   const [activeTab, setActiveTab] = useState<
-    "overview" | "shops" | "sales" | "system" | "pricing" | "popup" | "broadcast"
+    "overview" | "shops" | "sales" | "support" | "system" | "pricing" | "popup" | "broadcast"
   >("overview");
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPlan, setFilterPlan] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterTicketStatus, setFilterTicketStatus] = useState<string>("all");
 
   // Real Data States
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [shops, setShops] = useState<ManagedShop[]>([]);
+  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
   const [systemDiag, setSystemDiag] = useState<SystemDiagnostics | null>(null);
   const [loadingData, setLoadingData] = useState(false);
 
@@ -274,10 +299,40 @@ export default function SuperAdminMasterDashboard() {
       if (sysData.success && sysData.system) {
         setSystemDiag(sysData.system);
       }
+
+      // 4. Fetch Support Tickets
+      const supRes = await fetch("/api/admin/support");
+      const supData = await supRes.json();
+      if (supData.success && supData.tickets) {
+        setSupportTickets(supData.tickets);
+      }
     } catch (err) {
       triggerNotice("Error fetching real administrative data: " + String(err));
     } finally {
       setLoadingData(false);
+    }
+  };
+
+  const handleUpdateTicketStatus = async (
+    ticketId: string,
+    status: "open" | "in_progress" | "resolved",
+    founderNotes?: string
+  ) => {
+    try {
+      const res = await fetch(`/api/admin/support/${ticketId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, founderNotes }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        triggerNotice(`Ticket ${ticketId} updated to ${status}! ✓`);
+        loadDashboardData();
+      } else {
+        triggerNotice("Failed to update ticket: " + (data.error || "Unknown error"));
+      }
+    } catch (err) {
+      triggerNotice("Network error: " + String(err));
     }
   };
 
@@ -583,7 +638,22 @@ export default function SuperAdminMasterDashboard() {
                   activeTab === "sales" ? "bg-amber-500 text-slate-950 font-black shadow" : "hover:text-white"
                 }`}
               >
-                Revenue &amp; Subscriptions
+                Revenue &amp; Payments
+              </button>
+              <button
+                onClick={() => setActiveTab("support")}
+                className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
+                  activeTab === "support" ? "bg-amber-500 text-slate-950 font-black shadow" : "hover:text-white"
+                }`}
+              >
+                <span>Support Desk</span>
+                {(metrics?.openSupportTickets ?? supportTickets.filter(t => t.status !== "resolved").length) > 0 && (
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                    activeTab === "support" ? "bg-slate-950 text-amber-400" : "bg-rose-500 text-white"
+                  }`}>
+                    {metrics?.openSupportTickets ?? supportTickets.filter(t => t.status !== "resolved").length}
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => setActiveTab("system")}
@@ -741,34 +811,211 @@ export default function SuperAdminMasterDashboard() {
             </div>
 
             {/* Subscriptions breakdown */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
-                <div>
-                  <span className="text-xs text-slate-400 font-bold block">Free 24h Trials</span>
-                  <span className="text-xl font-black text-amber-400">{metrics?.planCounts.trial ?? 0}</span>
-                </div>
-                <span className="px-2.5 py-1 rounded-xl bg-amber-500/10 text-amber-400 text-xs font-bold">₹0</span>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Subscriptions By Plan</h3>
+                <span className="text-[11px] text-amber-400 font-medium">Monthly, Yearly &amp; Lifetime Tiers</span>
               </div>
-              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
-                <div>
-                  <span className="text-xs text-slate-400 font-bold block">Monthly Starter</span>
-                  <span className="text-xl font-black text-blue-400">{metrics?.planCounts.monthly ?? 0}</span>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-slate-400 font-bold block">Free 24h Trials</span>
+                    <span className="text-xl font-black text-amber-400">{metrics?.planCounts.trial ?? 0}</span>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-xl bg-amber-500/10 text-amber-400 text-xs font-bold">₹0</span>
                 </div>
-                <span className="px-2.5 py-1 rounded-xl bg-blue-500/10 text-blue-400 text-xs font-bold">₹199/mo</span>
+                <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-slate-400 font-bold block">Monthly Starter</span>
+                    <span className="text-xl font-black text-blue-400">{metrics?.planCounts.monthly ?? 0}</span>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-xl bg-blue-500/10 text-blue-400 text-xs font-bold">₹199/mo</span>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-slate-400 font-bold block">Yearly Business</span>
+                    <span className="text-xl font-black text-emerald-400">{metrics?.planCounts.yearly ?? 0}</span>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-400 text-xs font-bold">₹599/yr</span>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-slate-400 font-bold block">Lifetime Supreme</span>
+                    <span className="text-xl font-black text-purple-400">{metrics?.planCounts.lifetime ?? 0}</span>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-xl bg-purple-500/10 text-purple-400 text-xs font-bold">₹1,299 once</span>
+                </div>
               </div>
-              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+            </div>
+
+            {/* Print Jobs Performance Engine (Successful vs Failed vs Pending) */}
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <span className="text-xs text-slate-400 font-bold block">Yearly Business</span>
-                  <span className="text-xl font-black text-emerald-400">{metrics?.planCounts.yearly ?? 0}</span>
+                  <h3 className="text-base font-black text-white flex items-center gap-2">
+                    <Printer className="w-4 h-4 text-amber-400" />
+                    <span>Print Queue &amp; Spooler Operations</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Live tracking of customer print jobs, physical pages spooled, and failure rates.
+                  </p>
                 </div>
-                <span className="px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-400 text-xs font-bold">₹599/yr</span>
+                <div className="text-xs font-bold text-slate-400">
+                  Total Spooled: <span className="text-white font-black">{metrics?.totalOrders ?? 0}</span>
+                </div>
               </div>
-              <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
-                <div>
-                  <span className="text-xs text-slate-400 font-bold block">Lifetime Supreme</span>
-                  <span className="text-xl font-black text-purple-400">{metrics?.planCounts.lifetime ?? 0}</span>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
+                    <span>Successful Prints</span>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <div className="text-2xl font-black text-emerald-400">{metrics?.completedOrders ?? 0}</div>
+                  <div className="text-[10px] text-slate-500">
+                    {metrics?.totalOrders ? Math.round(((metrics.completedOrders || 0) / metrics.totalOrders) * 100) : 100}% fulfillment rate
+                  </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-xl bg-purple-500/10 text-purple-400 text-xs font-bold">₹1,299 once</span>
+
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
+                    <span>Failed / Cancelled</span>
+                    <XCircle className="w-4 h-4 text-rose-400" />
+                  </div>
+                  <div className="text-2xl font-black text-rose-400">{metrics?.failedOrders ?? 0}</div>
+                  <div className="text-[10px] text-slate-500">
+                    Auto-purged &amp; customer notified
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
+                    <span>In Queue / Spooling</span>
+                    <Clock className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div className="text-2xl font-black text-amber-400">{metrics?.pendingOrders ?? 0}</div>
+                  <div className="text-[10px] text-slate-500">
+                    Active tokens at shop counters
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
+                    <span>Total Pages Printed</span>
+                    <FileText className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <div className="text-2xl font-black text-white">{metrics?.totalPages ?? 0}</div>
+                  <div className="text-[10px] text-slate-500">
+                    Physical paper volume delivered
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Financial Reconciliation & Pending Payments */}
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-base font-black text-white flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-emerald-400" />
+                    <span>Revenue, Refunds &amp; Pending Settlements</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Clear separation between settled collections, customer refunds, and outstanding counter payments.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setActiveTab("sales")}
+                  className="text-xs font-bold text-amber-400 hover:underline flex items-center gap-1 self-start sm:self-auto"
+                >
+                  <span>Detailed Ledger ›</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-bold block">Gross Collections</span>
+                  <div className="text-2xl font-black text-emerald-400">
+                    ₹{(metrics?.grossCollections ?? 0).toLocaleString("en-IN")}
+                  </div>
+                  <div className="text-[10px] text-slate-500">SaaS licenses + customer volume</div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-bold block">Disputes &amp; Refunds</span>
+                  <div className="text-2xl font-black text-slate-300">
+                    ₹{(metrics?.refunds ?? 0).toLocaleString("en-IN")}
+                  </div>
+                  <div className="text-[10px] text-emerald-400 font-bold">0 chargebacks / disputes</div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-bold block">Net Collections</span>
+                  <div className="text-2xl font-black text-white">
+                    ₹{(metrics?.netCollections ?? 0).toLocaleString("en-IN")}
+                  </div>
+                  <div className="text-[10px] text-slate-500">Realized funds in founder accounts</div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                  <span className="text-xs text-amber-400 font-bold block">Pending Counter Payments</span>
+                  <div className="text-2xl font-black text-amber-400">
+                    ₹{(metrics?.pendingPaymentsAmount ?? 0).toLocaleString("en-IN")}
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    {metrics?.pendingPaymentsCount ?? 0} orders awaiting counter approval
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Print Agents Connectivity & Support Requests Quick Box */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Agent Health */}
+              <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-white font-bold text-sm">
+                    <Laptop className="w-4 h-4 text-emerald-400" />
+                    <span>Windows Print Agents</span>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-black">
+                    {metrics?.agentsOnline ?? 0} ONLINE
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Real-time heartbeat sync with USB and network thermal/laser printers at Xerox shops.
+                </p>
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
+                  <span className="text-slate-400">Disconnected Agents:</span>
+                  <strong className="text-white">
+                    {Math.max(0, (metrics?.totalShops ?? 0) - (metrics?.agentsOnline ?? 0))} shops
+                  </strong>
+                </div>
+              </div>
+
+              {/* Support Inquiries Quick Card */}
+              <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-white font-bold text-sm">
+                    <HelpCircle className="w-4 h-4 text-amber-400" />
+                    <span>Support &amp; Setup Inquiries</span>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-black">
+                    {metrics?.openSupportTickets ?? supportTickets.filter(t => t.status !== "resolved").length} OPEN
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Printer driver configuration, hardware setup, and billing queries from shop owners.
+                </p>
+                <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+                  <span className="text-xs text-slate-400">Direct WhatsApp Assistance Ready</span>
+                  <button
+                    onClick={() => setActiveTab("support")}
+                    className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                  >
+                    <span>Open Support Desk ›</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1003,6 +1250,43 @@ export default function SuperAdminMasterDashboard() {
               </div>
             </div>
 
+            {/* Financial Reconciliation Grid (Gross, Refunds, Net, Pending) */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
+                <span className="text-xs font-bold text-slate-400">Gross Collections</span>
+                <div className="text-3xl font-black text-emerald-400">
+                  ₹{(metrics?.grossCollections ?? 0).toLocaleString("en-IN")}
+                </div>
+                <div className="text-[11px] text-slate-500">Total volume processed</div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
+                <span className="text-xs font-bold text-slate-400">Refunds &amp; Disputes</span>
+                <div className="text-3xl font-black text-slate-300">
+                  ₹{(metrics?.refunds ?? 0).toLocaleString("en-IN")}
+                </div>
+                <div className="text-[11px] text-emerald-400 font-bold">0 dispute claims recorded</div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
+                <span className="text-xs font-bold text-slate-400">Net Collections</span>
+                <div className="text-3xl font-black text-white">
+                  ₹{(metrics?.netCollections ?? 0).toLocaleString("en-IN")}
+                </div>
+                <div className="text-[11px] text-slate-500">Gross minus refunds</div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
+                <span className="text-xs font-bold text-amber-400">Pending Counter Payments</span>
+                <div className="text-3xl font-black text-amber-400">
+                  ₹{(metrics?.pendingPaymentsAmount ?? 0).toLocaleString("en-IN")}
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  {metrics?.pendingPaymentsCount ?? 0} orders awaiting cash settlement
+                </div>
+              </div>
+            </div>
+
             {/* Plans Revenue Breakdown */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
@@ -1048,6 +1332,187 @@ export default function SuperAdminMasterDashboard() {
                 <span>Physical Pages Printed: <strong className="text-white">{metrics?.totalPages ?? 0}</strong></span>
                 <span>Customer Volume Collections: <strong className="text-emerald-400">₹{(metrics?.printRevenue ?? 0).toLocaleString("en-IN")}</strong></span>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─────────────────────────────────────────────────────────────
+            TAB 4: SUPPORT DESK & TICKET MANAGEMENT
+        ───────────────────────────────────────────────────────────── */}
+        {activeTab === "support" && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-slate-900 border border-slate-800">
+              <div>
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block mb-1">
+                  Customer Success &amp; Hardware Support
+                </span>
+                <h3 className="text-xl font-black text-white">Shopkeeper Support Desk</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Printer agent troubleshooting, hardware assistance, and billing requests from CSC &amp; Xerox shops.
+                </p>
+              </div>
+
+              {/* Status Filters */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setFilterTicketStatus("all")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    filterTicketStatus === "all"
+                      ? "bg-amber-500 text-slate-950 shadow"
+                      : "bg-slate-950 text-slate-400 hover:text-white border border-slate-800"
+                  }`}
+                >
+                  All ({supportTickets.length})
+                </button>
+                <button
+                  onClick={() => setFilterTicketStatus("open")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    filterTicketStatus === "open"
+                      ? "bg-amber-500 text-slate-950 shadow"
+                      : "bg-slate-950 text-slate-400 hover:text-white border border-slate-800"
+                  }`}
+                >
+                  Open ({supportTickets.filter((t) => t.status === "open").length})
+                </button>
+                <button
+                  onClick={() => setFilterTicketStatus("in_progress")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    filterTicketStatus === "in_progress"
+                      ? "bg-amber-500 text-slate-950 shadow"
+                      : "bg-slate-950 text-slate-400 hover:text-white border border-slate-800"
+                  }`}
+                >
+                  In Progress ({supportTickets.filter((t) => t.status === "in_progress").length})
+                </button>
+                <button
+                  onClick={() => setFilterTicketStatus("resolved")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    filterTicketStatus === "resolved"
+                      ? "bg-amber-500 text-slate-950 shadow"
+                      : "bg-slate-950 text-slate-400 hover:text-white border border-slate-800"
+                  }`}
+                >
+                  Resolved ({supportTickets.filter((t) => t.status === "resolved").length})
+                </button>
+              </div>
+            </div>
+
+            {/* Tickets Table / List */}
+            <div className="space-y-4">
+              {supportTickets
+                .filter(
+                  (ticket) =>
+                    filterTicketStatus === "all" || ticket.status === filterTicketStatus
+                )
+                .map((ticket) => (
+                  <div
+                    key={ticket.id}
+                    className="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-4 hover:border-slate-700 transition"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-black text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-lg border border-amber-500/30">
+                          {ticket.id}
+                        </span>
+                        <span
+                          className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            ticket.priority === "urgent"
+                              ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                              : ticket.priority === "high"
+                              ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                              : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                          }`}
+                        >
+                          {ticket.priority} priority
+                        </span>
+                        <span
+                          className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            ticket.status === "resolved"
+                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                              : ticket.status === "in_progress"
+                              ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                              : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                          }`}
+                        >
+                          {ticket.status.replace("_", " ")}
+                        </span>
+                      </div>
+
+                      <div className="text-[11px] text-slate-400">
+                        Submitted: {new Date(ticket.createdAt).toLocaleString()}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-bold text-white">{ticket.subject}</h4>
+                      <p className="text-xs text-slate-300 mt-1 leading-relaxed bg-slate-950/60 p-3 rounded-2xl border border-slate-800/80">
+                        {ticket.message}
+                      </p>
+                    </div>
+
+                    {ticket.founderNotes && (
+                      <div className="p-3 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-300">
+                        <strong className="text-amber-400">Founder Resolution Note:</strong> {ticket.founderNotes}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-800">
+                      <div className="flex items-center gap-3 text-xs">
+                        <span className="font-bold text-white">{ticket.shopName}</span>
+                        <span className="text-slate-400">({ticket.ownerName})</span>
+                        <span className="font-mono text-slate-300 font-semibold">{ticket.phone}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* Direct WhatsApp Action Button */}
+                        <a
+                          href={`https://wa.me/91${ticket.phone}?text=${encodeURIComponent(
+                            `नमस्ते ${ticket.ownerName} जी, मैं धनंजय बात कर रहा हूँ QR Print Seva से। आपकी टिकट (${ticket.id}: ${ticket.subject}) के संदर्भ में सहायता के लिए संपर्क कर रहा हूँ।`
+                          )}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow transition"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>WhatsApp Shopkeeper</span>
+                        </a>
+
+                        {/* Status Toggle Buttons */}
+                        {ticket.status !== "in_progress" && ticket.status !== "resolved" && (
+                          <button
+                            onClick={() => handleUpdateTicketStatus(ticket.id, "in_progress")}
+                            className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 text-xs font-bold transition"
+                          >
+                            Mark In Progress
+                          </button>
+                        )}
+
+                        {ticket.status !== "resolved" && (
+                          <button
+                            onClick={() => {
+                              const note = prompt("Enter resolution summary / action taken:") || "Resolved by founder";
+                              handleUpdateTicketStatus(ticket.id, "resolved", note);
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-bold transition flex items-center gap-1"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Mark Resolved</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+              {supportTickets.filter(
+                (t) => filterTicketStatus === "all" || t.status === filterTicketStatus
+              ).length === 0 && (
+                <div className="p-12 text-center text-slate-500 bg-slate-900 rounded-3xl border border-slate-800">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-white">No tickets in this category!</p>
+                  <p className="text-xs text-slate-400 mt-1">All shopkeeper requests are resolved.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
